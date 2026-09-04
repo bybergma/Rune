@@ -1,15 +1,30 @@
 # Runes Läsäventyr
 
-## Version 0.9.1
+## Version 0.10
 
-Build-fix:
-- Tog bort gamla `drawable/ic_launcher.png`.
-- Behåller den nya barnvänliga bokikonen som `drawable/ic_launcher.xml`.
-- Löser Gradle-felet `Duplicate resources`.
+Nytt i denna version:
+- barnet kan trycka på varje bokstav i målordet för att höra bokstavsljudet
+- varje bokstav visas som ett eget bokstavskort med diskret kant och padding
+- bokstavskorten ligger på samma rad
+- det barnet sa visas under målordet
+- bokstäver som matchar målordet färgas gröna
+- bokstäver som inte matchar färgas röda
+- varje bana använder 10 slumpade ord utan upprepning inom samma spel
 
-Övriga funktioner från v0.9 är oförändrade.
+### Nivå 1 – 20 ord
+IS, GÅ, ÅT, DU, VI, OM, BY, ÄR, AJ, HA, JA, NU, SE, PÅ, UT, IN, MÅ, SA, SY, BO
 
-## Bygg APK
+### Nivå 2 – 20 ord
+SOL, KOR, ROR, BIL, MUS, HUS, BOK, MAT, FIS, BÅT, TÅG, NÖT, RÄV, PIL, MAL, SÄL, VAS, ORM, BEN, APA
 
-Push till `main` startar GitHub Actions-workflowet **Build Android APK**.
-När bygget är klart, ladda ner artifact **Runes-Lasaventyr-APK** och installera `app-debug.apk`.
+### Nivå 3 – 21 ord
+BOLL, KATT, HUND, BORD, STOL, GLAS, FISK, LÄSA, MÅNE, BAJS, ROSA, GULT, GRÖN, SAFT, MATA, RESA, VIND, KAKA, SKOR, SNOR, RAPA
+
+### Motiv per nivå
+- Nivå 1: Pikachu → Pokéboll
+- Nivå 2: Bajskorv → Toalett
+- Nivå 3: Mario → Prinsessan
+
+Obs:
+Bokstavsljuden spelas just nu med Androids talsyntes och ljud-liknande uttal.
+Om du senare vill ha ännu bättre pedagogisk ljudning kan de bytas mot förinspelade svenska bokstavsljud.

@@ -40,15 +40,13 @@ public class MainActivity extends Activity {
 
     private static final int AUDIO_PERMISSION_REQUEST = 10;
 
-    // Child-friendly palette with clear meaning:
-    // green = right / progress, red = wrong / retry
-    private static final int BG = Color.rgb(241, 236, 191);          // warm sand
-    private static final int PANEL = Color.rgb(255, 249, 225);       // soft cream
-    private static final int BLUE = Color.rgb(82, 123, 196);         // pokemon-like blue
-    private static final int YELLOW = Color.rgb(255, 214, 73);       // pokemon-like yellow
-    private static final int GREEN = Color.rgb(92, 168, 109);        // correct
+    private static final int BG = Color.rgb(241, 236, 191);
+    private static final int PANEL = Color.rgb(255, 249, 225);
+    private static final int BLUE = Color.rgb(82, 123, 196);
+    private static final int YELLOW = Color.rgb(255, 214, 73);
+    private static final int GREEN = Color.rgb(92, 168, 109);
     private static final int GREEN_DARK = Color.rgb(57, 120, 72);
-    private static final int RED = Color.rgb(224, 87, 80);           // wrong
+    private static final int RED = Color.rgb(224, 87, 80);
     private static final int RED_DARK = Color.rgb(153, 53, 53);
     private static final int TEXT = Color.rgb(36, 36, 36);
     private static final int SOFT_BORDER = Color.rgb(197, 194, 173);
@@ -57,34 +55,40 @@ public class MainActivity extends Activity {
     private static final int STEP_CURRENT = Color.rgb(255, 233, 135);
 
     private final List<String> level1Words = new ArrayList<>(Arrays.asList(
-            "is", "gå", "åt", "du", "vi", "om", "by", "är", "aj", "ha"
+            "is", "gå", "åt", "du", "vi", "om", "by", "är", "aj", "ha",
+            "ja", "nu", "se", "på", "ut", "in", "må", "sa", "sy", "bo"
     ));
+
     private final List<String> level2Words = new ArrayList<>(Arrays.asList(
-            "sol", "kor", "ror", "bil", "mus", "hus", "bok", "mat", "fis"
+            "sol", "kor", "ror", "bil", "mus", "hus", "bok", "mat", "fis",
+            "båt", "tåg", "nöt", "räv", "pil", "mal", "säl", "vas", "orm", "ben", "apa"
     ));
+
     private final List<String> level3Words = new ArrayList<>(Arrays.asList(
-            "boll", "katt", "hund", "bord", "stol",
-            "glas", "fisk", "läsa", "måne", "bajs"
+            "boll", "katt", "hund", "bord", "stol", "glas", "fisk", "läsa", "måne", "bajs",
+            "rosa", "gult", "grön", "saft", "mata", "resa", "vind", "kaka", "skor", "snor", "rapa"
     ));
 
     private LinearLayout levelPanel;
     private LinearLayout gamePanel;
     private GridLayout board;
-    private TextView wordText;
+    private LinearLayout targetWordRow;
+    private LinearLayout heardWordRow;
     private TextView heardLabel;
-    private TextView heardText;
     private TextView feedbackText;
     private TextView progressText;
     private TextView celebrationText;
     private TextView chosenLevelText;
+    private TextView themeText;
     private Button listenButton;
 
     private SpeechRecognizer speechRecognizer;
     private TextToSpeech tts;
     private ToneGenerator toneGenerator;
 
-    private List<String> activeWords = new ArrayList<>();
-    private String currentWord = "sol";
+    private List<String> currentBoardWords = new ArrayList<>();
+    private String currentWord = "";
+    private int currentLevel = 1;
     private int position = 0;
     private int wordIndex = 0;
     private boolean ttsReady = false;
@@ -149,6 +153,27 @@ public class MainActivity extends Activity {
         question.setGravity(Gravity.CENTER);
         levelPanel.addView(question, matchWrap(dp(14)));
 
+        TextView hint1 = new TextView(this);
+        hint1.setText("1 = PIKACHU");
+        hint1.setTextColor(TEXT);
+        hint1.setTextSize(18);
+        hint1.setGravity(Gravity.CENTER);
+        levelPanel.addView(hint1, matchWrap(dp(4)));
+
+        TextView hint2 = new TextView(this);
+        hint2.setText("2 = BAJSKORV");
+        hint2.setTextColor(TEXT);
+        hint2.setTextSize(18);
+        hint2.setGravity(Gravity.CENTER);
+        levelPanel.addView(hint2, matchWrap(dp(4)));
+
+        TextView hint3 = new TextView(this);
+        hint3.setText("3 = MARIO");
+        hint3.setTextColor(TEXT);
+        hint3.setTextSize(18);
+        hint3.setGravity(Gravity.CENTER);
+        levelPanel.addView(hint3, matchWrap(dp(14)));
+
         Button hearQuestion = new Button(this);
         hearQuestion.setText("🔊 LYSSNA");
         hearQuestion.setAllCaps(false);
@@ -206,7 +231,15 @@ public class MainActivity extends Activity {
         chosenLevelText.setTextSize(22);
         chosenLevelText.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         chosenLevelText.setGravity(Gravity.CENTER);
-        gamePanel.addView(chosenLevelText, matchWrap(dp(4)));
+        gamePanel.addView(chosenLevelText, matchWrap(dp(2)));
+
+        themeText = new TextView(this);
+        themeText.setText("PIKACHU TILL POKÉBOLL");
+        themeText.setTextColor(TEXT);
+        themeText.setTextSize(18);
+        themeText.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        themeText.setGravity(Gravity.CENTER);
+        gamePanel.addView(themeText, matchWrap(dp(8)));
 
         progressText = new TextView(this);
         progressText.setText("10 kvar");
@@ -255,15 +288,32 @@ public class MainActivity extends Activity {
         instruction.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         card.addView(instruction, matchWrap(dp(8)));
 
-        wordText = new TextView(this);
-        wordText.setTextColor(TEXT);
-        wordText.setTextSize(72);
-        wordText.setGravity(Gravity.CENTER);
-        wordText.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
-        wordText.setSingleLine(true);
-        wordText.setLetterSpacing(0.03f);
-        wordText.setPadding(dp(6), dp(8), dp(6), dp(12));
-        card.addView(wordText, matchWrap(dp(12)));
+        targetWordRow = new LinearLayout(this);
+        targetWordRow.setOrientation(LinearLayout.HORIZONTAL);
+        targetWordRow.setGravity(Gravity.CENTER);
+        card.addView(targetWordRow, matchWrap(dp(10)));
+
+        TextView touchHint = new TextView(this);
+        touchHint.setText("Tryck på en bokstav för att höra ljudet");
+        touchHint.setTextColor(TEXT);
+        touchHint.setTextSize(15);
+        touchHint.setGravity(Gravity.CENTER);
+        card.addView(touchHint, matchWrap(dp(10)));
+
+        heardLabel = new TextView(this);
+        heardLabel.setText("DU SA");
+        heardLabel.setTextColor(TEXT);
+        heardLabel.setTextSize(15);
+        heardLabel.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        heardLabel.setGravity(Gravity.CENTER);
+        heardLabel.setVisibility(View.GONE);
+        card.addView(heardLabel, matchWrap(dp(4)));
+
+        heardWordRow = new LinearLayout(this);
+        heardWordRow.setOrientation(LinearLayout.HORIZONTAL);
+        heardWordRow.setGravity(Gravity.CENTER);
+        heardWordRow.setVisibility(View.GONE);
+        card.addView(heardWordRow, matchWrap(dp(12)));
 
         listenButton = new Button(this);
         listenButton.setText("🎤");
@@ -280,25 +330,6 @@ public class MainActivity extends Activity {
         styleActionButton(listenAgain, BLUE, Color.WHITE);
         listenAgain.setOnClickListener(v -> speak("Tryck på mikrofonen och läs ordet."));
         card.addView(listenAgain, matchWrap(dp(12)));
-
-        heardLabel = new TextView(this);
-        heardLabel.setText("JAG HÖRDE");
-        heardLabel.setTextColor(TEXT);
-        heardLabel.setTextSize(15);
-        heardLabel.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
-        heardLabel.setGravity(Gravity.CENTER);
-        heardLabel.setVisibility(View.GONE);
-        card.addView(heardLabel, matchWrap(dp(2)));
-
-        heardText = new TextView(this);
-        heardText.setTextColor(TEXT);
-        heardText.setTextSize(52);
-        heardText.setGravity(Gravity.CENTER);
-        heardText.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
-        heardText.setSingleLine(true);
-        heardText.setPadding(dp(8), dp(10), dp(8), dp(10));
-        heardText.setVisibility(View.GONE);
-        card.addView(heardText, matchWrap(dp(8)));
 
         feedbackText = new TextView(this);
         feedbackText.setText("🎤");
@@ -348,6 +379,14 @@ public class MainActivity extends Activity {
         return d;
     }
 
+    private GradientDrawable makeLetterDrawable(int fillColor, int strokeColor) {
+        GradientDrawable d = new GradientDrawable();
+        d.setColor(fillColor);
+        d.setCornerRadius(dp(10));
+        d.setStroke(dp(2), strokeColor);
+        return d;
+    }
+
     private void setupTextToSpeech() {
         tts = new TextToSpeech(this, status -> {
             if (status == TextToSpeech.SUCCESS) {
@@ -369,7 +408,44 @@ public class MainActivity extends Activity {
         tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "RuneSpeech");
     }
 
+    private void speakLetterSound(char letter) {
+        if (!ttsReady || tts == null) return;
+
+        String sound;
+        switch (Character.toLowerCase(letter)) {
+            case 'a': sound = "aaa"; break;
+            case 'b': sound = "buh"; break;
+            case 'd': sound = "duh"; break;
+            case 'e': sound = "eee"; break;
+            case 'f': sound = "fff"; break;
+            case 'g': sound = "guh"; break;
+            case 'h': sound = "hhh"; break;
+            case 'i': sound = "iii"; break;
+            case 'j': sound = "jjj"; break;
+            case 'k': sound = "kuh"; break;
+            case 'l': sound = "lll"; break;
+            case 'm': sound = "mmm"; break;
+            case 'n': sound = "nnn"; break;
+            case 'o': sound = "ooo"; break;
+            case 'p': sound = "puh"; break;
+            case 'r': sound = "rrr"; break;
+            case 's': sound = "sss"; break;
+            case 't': sound = "tuh"; break;
+            case 'u': sound = "uuu"; break;
+            case 'v': sound = "vvv"; break;
+            case 'y': sound = "yyy"; break;
+            case 'å': sound = "ååå"; break;
+            case 'ä': sound = "äää"; break;
+            case 'ö': sound = "ööö"; break;
+            default: sound = String.valueOf(letter); break;
+        }
+
+        tts.stop();
+        tts.speak(sound, TextToSpeech.QUEUE_FLUSH, null, "LetterSound");
+    }
+
     private void chooseLevel(int level) {
+        currentLevel = level;
         levelChosen = true;
         position = 0;
         wordIndex = 0;
@@ -377,16 +453,21 @@ public class MainActivity extends Activity {
         latestPartial = "";
         partialMatchedTarget = false;
 
+        List<String> pool = new ArrayList<>();
         if (level == 1) {
-            activeWords = new ArrayList<>(level1Words);
+            pool.addAll(level1Words);
+            themeText.setText("PIKACHU TILL POKÉBOLL");
         } else if (level == 2) {
-            activeWords = new ArrayList<>(level2Words);
+            pool.addAll(level2Words);
+            themeText.setText("BAJSKORV TILL TOALETT");
         } else {
-            activeWords = new ArrayList<>(level3Words);
+            pool.addAll(level3Words);
+            themeText.setText("MARIO TILL PRINSESSAN");
         }
 
-        Collections.shuffle(activeWords);
-        currentWord = activeWords.get(0);
+        Collections.shuffle(pool);
+        currentBoardWords = new ArrayList<>(pool.subList(0, Math.min(10, pool.size())));
+        currentWord = currentBoardWords.get(0);
 
         levelPanel.setVisibility(View.GONE);
         gamePanel.setVisibility(View.VISIBLE);
@@ -437,20 +518,10 @@ public class MainActivity extends Activity {
             cell.setBackground(makeStepDrawable(fill, border));
 
             if (isCurrent) {
-                ImageView hero = new ImageView(this);
-                hero.setImageResource(R.drawable.pikachu);
-                hero.setAdjustViewBounds(true);
-                hero.setMaxWidth(dp(38));
-                hero.setMaxHeight(dp(38));
-                cell.addView(hero, wrapWrap(dp(3)));
+                addThemeHero(cell);
                 heroView = cell;
             } else if (isGoal) {
-                ImageView ball = new ImageView(this);
-                ball.setImageResource(R.drawable.pokeball);
-                ball.setAdjustViewBounds(true);
-                ball.setMaxWidth(dp(34));
-                ball.setMaxHeight(dp(34));
-                cell.addView(ball, wrapWrap(dp(3)));
+                addThemeGoal(cell);
             }
 
             TextView number = new TextView(this);
@@ -476,8 +547,50 @@ public class MainActivity extends Activity {
         }
     }
 
+    private void addThemeHero(LinearLayout cell) {
+        if (currentLevel == 1) {
+            ImageView hero = new ImageView(this);
+            hero.setImageResource(R.drawable.pikachu);
+            hero.setAdjustViewBounds(true);
+            hero.setMaxWidth(dp(38));
+            hero.setMaxHeight(dp(38));
+            cell.addView(hero, wrapWrap(dp(3)));
+        } else {
+            TextView hero = new TextView(this);
+            hero.setText(currentLevel == 2 ? "💩" : "🍄");
+            hero.setTextSize(28);
+            hero.setGravity(Gravity.CENTER);
+            cell.addView(hero, wrapWrap(dp(2)));
+        }
+    }
+
+    private void addThemeGoal(LinearLayout cell) {
+        if (currentLevel == 1) {
+            ImageView goal = new ImageView(this);
+            goal.setImageResource(R.drawable.pokeball);
+            goal.setAdjustViewBounds(true);
+            goal.setMaxWidth(dp(34));
+            goal.setMaxHeight(dp(34));
+            cell.addView(goal, wrapWrap(dp(3)));
+        } else {
+            TextView goal = new TextView(this);
+            goal.setText(currentLevel == 2 ? "🚽" : "👸");
+            goal.setTextSize(28);
+            goal.setGravity(Gravity.CENTER);
+            cell.addView(goal, wrapWrap(dp(2)));
+        }
+    }
+
     private void showWord() {
-        wordText.setText(currentWord.toUpperCase(new Locale("sv", "SE")));
+        targetWordRow.removeAllViews();
+        String display = currentWord.toUpperCase(new Locale("sv", "SE"));
+        for (int i = 0; i < display.length(); i++) {
+            final char letter = display.charAt(i);
+            TextView tile = makeLetterTile(String.valueOf(letter), PANEL, SOFT_BORDER, TEXT, 54, true);
+            tile.setOnClickListener(v -> speakLetterSound(letter));
+            targetWordRow.addView(tile);
+        }
+
         boolean recognitionAvailable = SpeechRecognizer.isRecognitionAvailable(this);
         listenButton.setEnabled(position < 10 && recognitionAvailable);
         if (!recognitionAvailable) {
@@ -486,29 +599,77 @@ public class MainActivity extends Activity {
         }
     }
 
-    private void clearHeard() {
-        heardLabel.setVisibility(View.GONE);
-        heardText.setVisibility(View.GONE);
-        heardText.setText("");
-        heardText.setBackgroundColor(Color.TRANSPARENT);
+    private TextView makeLetterTile(String text, int fill, int stroke, int textColor, int textSize, boolean clickable) {
+        TextView tile = new TextView(this);
+        tile.setText(text);
+        tile.setTextColor(textColor);
+        tile.setTextSize(textSize);
+        tile.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        tile.setGravity(Gravity.CENTER);
+        tile.setMinWidth(dp(58));
+        tile.setMinHeight(dp(68));
+        tile.setPadding(dp(12), dp(8), dp(12), dp(8));
+        tile.setBackground(makeLetterDrawable(fill, stroke));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+        );
+        lp.setMargins(dp(4), dp(0), dp(4), dp(0));
+        tile.setLayoutParams(lp);
+
+        if (clickable) {
+            tile.setClickable(true);
+            tile.setFocusable(true);
+        }
+        return tile;
     }
 
-    private void showHeard(String text, boolean correct) {
-        heardLabel.setText("JAG HÖRDE");
+    private void clearHeard() {
+        heardLabel.setVisibility(View.GONE);
+        heardWordRow.setVisibility(View.GONE);
+        heardWordRow.removeAllViews();
+    }
+
+    private void showHeardComparison(String heardRaw) {
+        String heard = normalizeForDisplay(heardRaw);
+        if (heard.isEmpty()) {
+            clearHeard();
+            return;
+        }
+
+        heardLabel.setText("DU SA");
         heardLabel.setVisibility(View.VISIBLE);
-        heardText.setVisibility(View.VISIBLE);
-        heardText.setText(text.toUpperCase(new Locale("sv", "SE")));
-        heardText.setTextColor(correct ? GREEN_DARK : RED_DARK);
-        heardText.setBackground(makeStepDrawable(correct ? STEP_DONE : Color.rgb(255, 231, 231),
-                correct ? GREEN : RED));
+        heardWordRow.setVisibility(View.VISIBLE);
+        heardWordRow.removeAllViews();
+
+        String target = normalizeForDisplay(currentWord);
+        for (int i = 0; i < heard.length(); i++) {
+            char letter = Character.toUpperCase(heard.charAt(i));
+            boolean matches = i < target.length() && heard.charAt(i) == target.charAt(i);
+
+            int fill = matches ? STEP_DONE : Color.rgb(255, 231, 231);
+            int stroke = matches ? GREEN : RED;
+            int textColor = matches ? GREEN_DARK : RED_DARK;
+
+            TextView tile = makeLetterTile(String.valueOf(letter), fill, stroke, textColor, 42, false);
+            heardWordRow.addView(tile);
+        }
 
         ScaleAnimation pop = new ScaleAnimation(
-                0.75f, 1.0f, 0.75f, 1.0f,
+                0.85f, 1.0f, 0.85f, 1.0f,
                 Animation.RELATIVE_TO_SELF, 0.5f,
                 Animation.RELATIVE_TO_SELF, 0.5f
         );
-        pop.setDuration(240);
-        heardText.startAnimation(pop);
+        pop.setDuration(180);
+        heardWordRow.startAnimation(pop);
+    }
+
+    private String normalizeForDisplay(String s) {
+        if (s == null) return "";
+        String value = s.toLowerCase(new Locale("sv", "SE")).trim();
+        value = Normalizer.normalize(value, Normalizer.Form.NFC);
+        value = value.replaceAll("[^a-zåäö ]", "").replaceAll("\\s+", "");
+        return value;
     }
 
     private void setupSpeechRecognizer() {
@@ -544,13 +705,13 @@ public class MainActivity extends Activity {
                 listenButton.setEnabled(true);
 
                 if (partialMatchedTarget) {
-                    showHeard(currentWord, true);
+                    showHeardComparison(currentWord);
                     advance();
                     return;
                 }
 
                 if (!latestPartial.isEmpty()) {
-                    showHeard(latestPartial, false);
+                    showHeardComparison(latestPartial);
                     feedbackText.setText("❌ FEL");
                     feedbackText.setTextColor(RED_DARK);
                     speak("Försök igen.");
@@ -576,7 +737,7 @@ public class MainActivity extends Activity {
 
                 if (matches == null || matches.isEmpty()) {
                     if (!latestPartial.isEmpty()) {
-                        showHeard(latestPartial, false);
+                        showHeardComparison(latestPartial);
                     } else {
                         clearHeard();
                     }
@@ -602,7 +763,7 @@ public class MainActivity extends Activity {
                     best = currentWord;
                 }
 
-                showHeard(correct ? currentWord : best, correct);
+                showHeardComparison(correct ? currentWord : best);
 
                 if (correct) {
                     advance();
@@ -629,13 +790,10 @@ public class MainActivity extends Activity {
                         }
                     }
 
-                    if (!latestPartial.isEmpty()) {
-                        heardLabel.setVisibility(View.VISIBLE);
-                        heardText.setVisibility(View.VISIBLE);
-                        heardLabel.setText("JAG HÖR");
-                        heardText.setText(latestPartial.toUpperCase(new Locale("sv", "SE")));
-                        heardText.setTextColor(TEXT);
-                        heardText.setBackground(makeStepDrawable(Color.WHITE, BLUE));
+                    if (!normalizeForDisplay(latestPartial).isEmpty()) {
+                        showHeardComparison(latestPartial);
+                        feedbackText.setText("👂 …");
+                        feedbackText.setTextColor(TEXT);
                     }
                 }
             }
@@ -675,8 +833,9 @@ public class MainActivity extends Activity {
         if (Build.VERSION.SDK_INT >= 33) {
             ArrayList<String> bias = new ArrayList<>();
             bias.add(currentWord);
-            if (currentWord.equals("vi")) bias.add("v");
-            if (currentWord.equals("är")) bias.add("r");
+            String displayTarget = normalizeForDisplay(currentWord);
+            if (displayTarget.equals("vi")) bias.add("v");
+            if (displayTarget.equals("är")) bias.add("r");
             intent.putStringArrayListExtra(RecognizerIntent.EXTRA_BIASING_STRINGS, bias);
         }
 
@@ -695,12 +854,13 @@ public class MainActivity extends Activity {
     }
 
     private boolean matchesTarget(String heard, String target) {
-        String h = normalize(heard);
-        String t = normalize(target);
+        String h = normalizeForDisplay(heard);
+        String t = normalizeForDisplay(target);
 
         if (h.equals(t)) return true;
 
-        for (String part : h.split(" ")) {
+        String normalizedHeard = normalize(heard);
+        for (String part : normalizedHeard.split(" ")) {
             if (part.equals(t)) return true;
         }
 
@@ -780,10 +940,8 @@ public class MainActivity extends Activity {
         listenButton.setEnabled(false);
 
         if (position >= 10) {
-            wordText.setText("MÅL!");
             progressText.setText("MÅL!");
             playFinalCelebration();
-
             handler.postDelayed(this::showLevelSelection, 5200);
             return;
         }
@@ -792,11 +950,9 @@ public class MainActivity extends Activity {
 
         handler.postDelayed(() -> {
             wordIndex++;
-            if (wordIndex >= activeWords.size()) {
-                wordIndex = 0;
-                Collections.shuffle(activeWords);
+            if (wordIndex < currentBoardWords.size()) {
+                currentWord = currentBoardWords.get(wordIndex);
             }
-            currentWord = activeWords.get(wordIndex);
             clearHeard();
             celebrationText.setVisibility(View.GONE);
             showWord();
