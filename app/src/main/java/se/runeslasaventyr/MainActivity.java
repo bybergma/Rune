@@ -23,6 +23,7 @@ import android.view.animation.Animation;
 import android.view.animation.ScaleAnimation;
 import android.widget.Button;
 import android.widget.GridLayout;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -38,18 +39,14 @@ public class MainActivity extends Activity {
 
     private static final int AUDIO_PERMISSION_REQUEST = 10;
 
-    // Nivå 1: två bokstäver
     private final List<String> level1Words = new ArrayList<>(Arrays.asList(
             "is", "gå", "åt", "du", "vi", "om", "by", "är", "aj", "ha"
     ));
 
-    // Nivå 2: korta ord. KATT ligger i nivå 3 för att hålla denna nivå kortare.
-    // Det finns nio unika ord, så ett ord kan återkomma på en 10-stegsbana.
     private final List<String> level2Words = new ArrayList<>(Arrays.asList(
             "sol", "kor", "ror", "bil", "mus", "hus", "bok", "mat", "fis"
     ));
 
-    // Nivå 3: fyra bokstäver
     private final List<String> level3Words = new ArrayList<>(Arrays.asList(
             "boll", "katt", "hund", "bord", "stol",
             "glas", "fisk", "läsa", "måne", "bajs"
@@ -74,7 +71,6 @@ public class MainActivity extends Activity {
 
     private List<String> activeWords = new ArrayList<>();
     private String currentWord = "sol";
-    private int selectedLevel = 1;
     private int position = 0;
     private int wordIndex = 0;
     private boolean ttsReady = false;
@@ -82,7 +78,7 @@ public class MainActivity extends Activity {
     private boolean levelChosen = false;
     private String latestPartial = "";
     private boolean partialMatchedTarget = false;
-    private TextView heroView;
+    private View heroView;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
 
@@ -99,44 +95,21 @@ public class MainActivity extends Activity {
         }
     }
 
-    private void setupTextToSpeech() {
-        tts = new TextToSpeech(this, status -> {
-            if (status == TextToSpeech.SUCCESS) {
-                int result = tts.setLanguage(new Locale("sv", "SE"));
-                ttsReady = result != TextToSpeech.LANG_MISSING_DATA
-                        && result != TextToSpeech.LANG_NOT_SUPPORTED;
-                tts.setSpeechRate(0.92f);
-
-                if (ttsReady && !levelChosen) {
-                    speakLevelQuestion();
-                }
-            }
-        });
-    }
-
-    private void speak(String text) {
-        if (!ttsReady || tts == null) return;
-        tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "RuneSpeech");
-    }
-
-    private void speakLevelQuestion() {
-        speak("Vilken nivå vill du läsa? Tryck på ett, två eller tre.");
-    }
-
     private void buildUi() {
         ScrollView scroll = new ScrollView(this);
         scroll.setFillViewport(true);
-        scroll.setBackgroundColor(Color.rgb(36, 86, 62));
+        scroll.setBackgroundColor(Color.WHITE);
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setPadding(dp(16), dp(18), dp(16), dp(28));
+        root.setBackgroundColor(Color.WHITE);
         scroll.addView(root);
 
         TextView title = new TextView(this);
         title.setText("Runes Läsäventyr");
-        title.setTextColor(Color.WHITE);
-        title.setTextSize(28);
+        title.setTextColor(Color.BLACK);
+        title.setTextSize(30);
         title.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         title.setGravity(Gravity.CENTER);
         root.addView(title, matchWrap(dp(14)));
@@ -151,22 +124,22 @@ public class MainActivity extends Activity {
         levelPanel = new LinearLayout(this);
         levelPanel.setOrientation(LinearLayout.VERTICAL);
         levelPanel.setPadding(dp(18), dp(22), dp(18), dp(22));
-        levelPanel.setBackgroundColor(Color.rgb(255, 248, 223));
+        levelPanel.setBackgroundColor(Color.WHITE);
         root.addView(levelPanel, matchWrap(dp(0)));
 
         TextView question = new TextView(this);
         question.setText("VÄLJ NIVÅ");
-        question.setTextColor(Color.rgb(23, 50, 41));
-        question.setTextSize(24);
+        question.setTextColor(Color.BLACK);
+        question.setTextSize(26);
         question.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         question.setGravity(Gravity.CENTER);
         levelPanel.addView(question, matchWrap(dp(14)));
 
         Button hearQuestion = new Button(this);
-        hearQuestion.setText("🔊");
-        hearQuestion.setContentDescription("Lyssna på frågan");
-        hearQuestion.setTextSize(30);
-        hearQuestion.setMinHeight(dp(60));
+        hearQuestion.setText("🔊 LYSSNA");
+        hearQuestion.setAllCaps(false);
+        hearQuestion.setTextSize(20);
+        styleRedButton(hearQuestion);
         hearQuestion.setOnClickListener(v -> speakLevelQuestion());
         levelPanel.addView(hearQuestion, matchWrap(dp(18)));
 
@@ -181,25 +154,30 @@ public class MainActivity extends Activity {
 
         TextView hint = new TextView(this);
         hint.setText("1      2      3");
-        hint.setTextColor(Color.rgb(95, 105, 98));
-        hint.setTextSize(16);
+        hint.setTextColor(Color.BLACK);
+        hint.setTextSize(18);
         hint.setGravity(Gravity.CENTER);
         levelPanel.addView(hint, matchWrap(dp(0)));
     }
 
-    private Button makeLevelButton(int length) {
+    private Button makeLevelButton(int level) {
         Button button = new Button(this);
-        button.setText(String.valueOf(length));
-        button.setTextSize(42);
+        button.setText(String.valueOf(level));
+        button.setTextSize(28);
         button.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
-        button.setMinHeight(dp(92));
-        button.setContentDescription("Nivå " + length);
-        button.setOnClickListener(v -> chooseLevel(length));
+        button.setMinHeight(dp(82));
+        button.setContentDescription("Nivå " + level);
+        styleRedButton(button);
+        button.setOnClickListener(v -> chooseLevel(level));
         return button;
     }
 
     private LinearLayout.LayoutParams weightedButtonParams() {
-        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(0, dp(100), 1f);
+        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(
+                0,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                1f
+        );
         p.setMargins(dp(5), dp(0), dp(5), dp(0));
         return p;
     }
@@ -211,132 +189,171 @@ public class MainActivity extends Activity {
         root.addView(gamePanel, matchWrap(dp(0)));
 
         chosenLevelText = new TextView(this);
-        chosenLevelText.setTextColor(Color.WHITE);
-        chosenLevelText.setTextSize(17);
+        chosenLevelText.setText("NIVÅ 1");
+        chosenLevelText.setTextColor(Color.RED);
+        chosenLevelText.setTextSize(26);
         chosenLevelText.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         chosenLevelText.setGravity(Gravity.CENTER);
-        gamePanel.addView(chosenLevelText, matchWrap(dp(8)));
+        gamePanel.addView(chosenLevelText, matchWrap(dp(10)));
 
-        TextView subtitle = new TextView(this);
-        subtitle.setText("10 ord till skatten!");
-        subtitle.setTextColor(Color.WHITE);
-        subtitle.setTextSize(18);
-        subtitle.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
-        subtitle.setGravity(Gravity.CENTER);
-        gamePanel.addView(subtitle, matchWrap(dp(14)));
+        progressText = new TextView(this);
+        progressText.setText("10 kvar");
+        progressText.setTextColor(Color.BLACK);
+        progressText.setTextSize(22);
+        progressText.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        progressText.setGravity(Gravity.CENTER);
+        gamePanel.addView(progressText, matchWrap(dp(14)));
 
         startText = new TextView(this);
-        startText.setText("START  🧙");
-        startText.setTextColor(Color.rgb(23, 50, 41));
-        startText.setTextSize(18);
+        startText.setText("START");
+        startText.setTextColor(Color.BLACK);
+        startText.setTextSize(22);
         startText.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         startText.setGravity(Gravity.CENTER);
-        startText.setBackgroundColor(Color.rgb(215, 199, 145));
-        startText.setPadding(dp(10), dp(10), dp(10), dp(10));
-        gamePanel.addView(startText, matchWrap(dp(8)));
+        startText.setBackgroundColor(Color.WHITE);
+        startText.setPadding(dp(10), dp(12), dp(10), dp(12));
+        startText.setTextAlignment(View.TEXT_ALIGNMENT_CENTER);
+        startText.setBackground(makeRectDrawable(Color.WHITE, Color.RED));
+        gamePanel.addView(startText, matchWrap(dp(12)));
 
         board = new GridLayout(this);
         board.setColumnCount(5);
         board.setRowCount(2);
-        board.setPadding(dp(4), dp(4), dp(4), dp(4));
+        board.setPadding(dp(2), dp(2), dp(2), dp(2));
         board.setClipChildren(false);
         board.setClipToPadding(false);
-        gamePanel.addView(board, matchWrap(dp(8)));
-
-        progressText = new TextView(this);
-        progressText.setTextColor(Color.WHITE);
-        progressText.setTextSize(18);
-        progressText.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
-        progressText.setGravity(Gravity.CENTER);
-        gamePanel.addView(progressText, matchWrap(dp(12)));
+        gamePanel.addView(board, matchWrap(dp(12)));
 
         celebrationText = new TextView(this);
-        celebrationText.setText("⭐ HURRA! ⭐");
-        celebrationText.setTextColor(Color.rgb(255, 232, 94));
+        celebrationText.setText("DU KAN LÄSA!");
+        celebrationText.setTextColor(Color.RED);
         celebrationText.setTextSize(34);
         celebrationText.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         celebrationText.setGravity(Gravity.CENTER);
         celebrationText.setVisibility(View.GONE);
-        gamePanel.addView(celebrationText, matchWrap(dp(8)));
+        gamePanel.addView(celebrationText, matchWrap(dp(10)));
 
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
-        card.setPadding(dp(18), dp(18), dp(18), dp(20));
-        card.setBackgroundColor(Color.rgb(255, 248, 223));
+        card.setPadding(dp(18), dp(20), dp(18), dp(20));
+        card.setBackground(makeRectDrawable(Color.WHITE, Color.RED));
         gamePanel.addView(card, matchWrap(dp(12)));
 
         TextView instruction = new TextView(this);
         instruction.setText("LÄS ORDET");
-        instruction.setTextColor(Color.rgb(80, 95, 85));
-        instruction.setTextSize(18);
+        instruction.setTextColor(Color.BLACK);
+        instruction.setTextSize(22);
         instruction.setGravity(Gravity.CENTER);
         instruction.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
-        card.addView(instruction, matchWrap(dp(4)));
+        card.addView(instruction, matchWrap(dp(6)));
 
         wordText = new TextView(this);
-        wordText.setTextColor(Color.rgb(23, 50, 41));
-        wordText.setTextSize(68);
+        wordText.setTextColor(Color.BLACK);
+        wordText.setTextSize(74);
         wordText.setGravity(Gravity.CENTER);
         wordText.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
-        wordText.setLetterSpacing(0.08f);
-        wordText.setPadding(dp(4), dp(5), dp(4), dp(10));
-        card.addView(wordText, matchWrap(dp(8)));
+        wordText.setSingleLine(true);
+        wordText.setLetterSpacing(0.03f);
+        wordText.setPadding(dp(4), dp(10), dp(4), dp(10));
+        card.addView(wordText, matchWrap(dp(12)));
 
         listenButton = new Button(this);
         listenButton.setText("🎤");
-        listenButton.setContentDescription("Tryck för att läsa ordet");
         listenButton.setTextSize(38);
-        listenButton.setMinHeight(dp(76));
+        listenButton.setMinHeight(dp(80));
+        styleRedButton(listenButton);
         listenButton.setOnClickListener(v -> startListening());
-        card.addView(listenButton, matchWrap(dp(8)));
+        card.addView(listenButton, matchWrap(dp(10)));
 
-        Button repeatInstructionButton = new Button(this);
-        repeatInstructionButton.setText("🔊  LYSSNA");
-        repeatInstructionButton.setContentDescription("Spela upp instruktionen igen");
-        repeatInstructionButton.setTextSize(18);
-        repeatInstructionButton.setAllCaps(false);
-        repeatInstructionButton.setOnClickListener(v ->
-                speak("Tryck på mikrofonen och läs ordet."));
-        card.addView(repeatInstructionButton, matchWrap(dp(14)));
+        Button listenAgain = new Button(this);
+        listenAgain.setText("🔊 LYSSNA");
+        listenAgain.setAllCaps(false);
+        listenAgain.setTextSize(20);
+        styleWhiteButton(listenAgain);
+        listenAgain.setOnClickListener(v -> speak("Tryck på mikrofonen och läs ordet."));
+        card.addView(listenAgain, matchWrap(dp(14)));
 
         heardLabel = new TextView(this);
         heardLabel.setText("JAG HÖRDE");
-        heardLabel.setTextColor(Color.rgb(95, 105, 98));
-        heardLabel.setTextSize(14);
+        heardLabel.setTextColor(Color.BLACK);
+        heardLabel.setTextSize(15);
         heardLabel.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         heardLabel.setGravity(Gravity.CENTER);
         heardLabel.setVisibility(View.GONE);
         card.addView(heardLabel, matchWrap(dp(2)));
 
         heardText = new TextView(this);
-        heardText.setText("");
-        heardText.setTextColor(Color.rgb(35, 70, 53));
-        heardText.setTextSize(56);
+        heardText.setTextColor(Color.BLACK);
+        heardText.setTextSize(54);
         heardText.setGravity(Gravity.CENTER);
         heardText.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        heardText.setSingleLine(true);
         heardText.setPadding(dp(8), dp(10), dp(8), dp(10));
         heardText.setVisibility(View.GONE);
-        card.addView(heardText, matchWrap(dp(6)));
+        card.addView(heardText, matchWrap(dp(8)));
 
         feedbackText = new TextView(this);
         feedbackText.setText("🎤");
-        feedbackText.setTextColor(Color.rgb(35, 70, 53));
+        feedbackText.setTextColor(Color.BLACK);
         feedbackText.setTextSize(22);
         feedbackText.setGravity(Gravity.CENTER);
         feedbackText.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         feedbackText.setPadding(dp(8), dp(8), dp(8), dp(8));
-        card.addView(feedbackText, matchWrap(dp(0)));
+        card.addView(feedbackText, matchWrap(dp(6)));
 
         Button chooseAgain = new Button(this);
-        chooseAgain.setText("1 · 2 · 3");
-        chooseAgain.setContentDescription("Välj en annan nivå");
-        chooseAgain.setTextSize(20);
+        chooseAgain.setText("VÄLJ NIVÅ IGEN");
+        chooseAgain.setAllCaps(false);
+        chooseAgain.setTextSize(18);
+        styleWhiteButton(chooseAgain);
         chooseAgain.setOnClickListener(v -> showLevelSelection());
         gamePanel.addView(chooseAgain, matchWrap(dp(0)));
     }
 
+    private void styleRedButton(Button button) {
+        button.setBackgroundColor(Color.RED);
+        button.setTextColor(Color.WHITE);
+        button.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+    }
+
+    private void styleWhiteButton(Button button) {
+        button.setBackground(makeRectDrawable(Color.WHITE, Color.BLACK));
+        button.setTextColor(Color.BLACK);
+        button.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+    }
+
+    private android.graphics.drawable.GradientDrawable makeRectDrawable(int fillColor, int strokeColor) {
+        android.graphics.drawable.GradientDrawable d = new android.graphics.drawable.GradientDrawable();
+        d.setColor(fillColor);
+        d.setCornerRadius(dp(10));
+        d.setStroke(dp(2), strokeColor);
+        return d;
+    }
+
+    private void setupTextToSpeech() {
+        tts = new TextToSpeech(this, status -> {
+            if (status == TextToSpeech.SUCCESS) {
+                int result = tts.setLanguage(new Locale("sv", "SE"));
+                ttsReady = result != TextToSpeech.LANG_MISSING_DATA
+                        && result != TextToSpeech.LANG_NOT_SUPPORTED;
+                tts.setSpeechRate(0.92f);
+                if (ttsReady && !levelChosen) {
+                    speakLevelQuestion();
+                }
+            }
+        });
+    }
+
+    private void speakLevelQuestion() {
+        speak("Vilken nivå vill du läsa? Tryck på ett, två eller tre.");
+    }
+
+    private void speak(String text) {
+        if (!ttsReady || tts == null) return;
+        tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "RuneSpeech");
+    }
+
     private void chooseLevel(int level) {
-        selectedLevel = level;
         levelChosen = true;
         position = 0;
         wordIndex = 0;
@@ -358,10 +375,10 @@ public class MainActivity extends Activity {
         levelPanel.setVisibility(View.GONE);
         gamePanel.setVisibility(View.VISIBLE);
         celebrationText.setVisibility(View.GONE);
+        chosenLevelText.setText("NIVÅ " + level);
         clearHeard();
         renderBoard();
         showWord();
-        chosenLevelText.setText("NIVÅ " + level);
         feedbackText.setText("🎤");
 
         speak("Nivå " + spokenLevel(level) + ". Tryck på mikrofonen och läs ordet.");
@@ -374,12 +391,8 @@ public class MainActivity extends Activity {
     }
 
     private void showLevelSelection() {
-        if (speechRecognizer != null) {
-            speechRecognizer.cancel();
-        }
-        if (tts != null) {
-            tts.stop();
-        }
+        if (speechRecognizer != null) speechRecognizer.cancel();
+        if (tts != null) tts.stop();
 
         levelChosen = false;
         celebrating = false;
@@ -391,76 +404,72 @@ public class MainActivity extends Activity {
     private void renderBoard() {
         board.removeAllViews();
         heroView = null;
-        startText.setText(position == 0 ? "START  🧙" : "START");
+        startText.setText("START");
 
         for (int i = 1; i <= 10; i++) {
-            TextView cell = new TextView(this);
-
-            String content;
-            if (position == i && i == 10) {
-                content = "🧙\n🏆";
-            } else if (position == i) {
-                content = "🧙\n" + i;
-            } else if (i == 10) {
-                content = "🏆\n10";
-            } else {
-                content = String.valueOf(i);
-            }
-
-            cell.setText(content);
+            LinearLayout cell = new LinearLayout(this);
+            cell.setOrientation(LinearLayout.VERTICAL);
             cell.setGravity(Gravity.CENTER);
-            cell.setTextSize(position == i ? 22 : 18);
-            cell.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
-            cell.setTextColor(Color.WHITE);
-            cell.setPadding(dp(4), dp(6), dp(4), dp(6));
+            cell.setPadding(dp(4), dp(4), dp(4), dp(4));
 
-            if (i <= position) {
-                cell.setBackgroundColor(Color.rgb(103, 151, 78));
-            } else if (i == 10) {
-                cell.setBackgroundColor(Color.rgb(121, 91, 52));
+            boolean isCurrent = position == i;
+            boolean isGoal = i == 10;
+            boolean isDone = i <= position;
+
+            if (isDone) {
+                cell.setBackground(makeRectDrawable(Color.rgb(255, 235, 235), Color.RED));
             } else {
-                cell.setBackgroundColor(Color.rgb(139, 103, 63));
+                cell.setBackground(makeRectDrawable(Color.WHITE, Color.BLACK));
             }
+
+            if (isCurrent) {
+                ImageView hero = new ImageView(this);
+                hero.setImageResource(R.drawable.pikachu);
+                hero.setAdjustViewBounds(true);
+                hero.setMaxWidth(dp(38));
+                hero.setMaxHeight(dp(38));
+                cell.addView(hero, wrapWrap(dp(3)));
+                heroView = cell;
+            } else if (isGoal) {
+                ImageView ball = new ImageView(this);
+                ball.setImageResource(R.drawable.pokeball);
+                ball.setAdjustViewBounds(true);
+                ball.setMaxWidth(dp(34));
+                ball.setMaxHeight(dp(34));
+                cell.addView(ball, wrapWrap(dp(3)));
+            }
+
+            TextView number = new TextView(this);
+            number.setText(String.valueOf(i));
+            number.setTextColor(Color.BLACK);
+            number.setTextSize(isCurrent ? 21 : 19);
+            number.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+            number.setGravity(Gravity.CENTER);
+            cell.addView(number, wrapWrap(0));
 
             GridLayout.LayoutParams lp = new GridLayout.LayoutParams();
             lp.width = 0;
-            lp.height = dp(72);
+            lp.height = dp(98);
             lp.columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f);
-            lp.setMargins(dp(3), dp(3), dp(3), dp(3));
+            lp.setMargins(dp(4), dp(4), dp(4), dp(4));
             board.addView(cell, lp);
-
-            if (position == i) {
-                heroView = cell;
-            }
         }
 
         if (position < 10) {
             progressText.setText((10 - position) + " kvar");
         } else {
-            progressText.setText("🏆 MÅL!");
+            progressText.setText("MÅL!");
         }
     }
 
     private void showWord() {
-        wordText.setText(spaced(currentWord).toUpperCase(new Locale("sv", "SE")));
+        wordText.setText(currentWord.toUpperCase(new Locale("sv", "SE")));
         boolean recognitionAvailable = SpeechRecognizer.isRecognitionAvailable(this);
         listenButton.setEnabled(position < 10 && recognitionAvailable);
-        if (!recognitionAvailable) {
-            feedbackText.setText("🎤 🚫");
-        }
-    }
-
-    private String spaced(String word) {
-        StringBuilder b = new StringBuilder();
-        for (int i = 0; i < word.length(); i++) {
-            if (i > 0) b.append("  ");
-            b.append(word.charAt(i));
-        }
-        return b.toString();
+        if (!recognitionAvailable) feedbackText.setText("🎤 🚫");
     }
 
     private void clearHeard() {
-        if (heardLabel == null || heardText == null) return;
         heardLabel.setVisibility(View.GONE);
         heardText.setVisibility(View.GONE);
         heardText.setText("");
@@ -472,17 +481,17 @@ public class MainActivity extends Activity {
         heardLabel.setVisibility(View.VISIBLE);
         heardText.setVisibility(View.VISIBLE);
         heardText.setText(text.toUpperCase(new Locale("sv", "SE")));
-        heardText.setTextColor(correct
-                ? Color.rgb(24, 105, 48)
-                : Color.rgb(150, 55, 45));
-        heardText.setBackgroundColor(correct
-                ? Color.rgb(218, 247, 220)
-                : Color.rgb(255, 229, 218));
+        heardText.setTextColor(Color.BLACK);
+        heardText.setBackground(makeRectDrawable(
+                correct ? Color.rgb(255, 235, 235) : Color.WHITE,
+                correct ? Color.RED : Color.BLACK
+        ));
 
         ScaleAnimation pop = new ScaleAnimation(
                 0.75f, 1.0f, 0.75f, 1.0f,
                 Animation.RELATIVE_TO_SELF, 0.5f,
-                Animation.RELATIVE_TO_SELF, 0.5f);
+                Animation.RELATIVE_TO_SELF, 0.5f
+        );
         pop.setDuration(240);
         heardText.startAnimation(pop);
     }
@@ -494,6 +503,7 @@ public class MainActivity extends Activity {
                 if (!levelChosen) return;
                 feedbackText.setText("👂");
                 latestPartial = "";
+                partialMatchedTarget = false;
             }
 
             @Override public void onBeginningOfSpeech() {
@@ -508,7 +518,7 @@ public class MainActivity extends Activity {
             }
 
             @Override public void onError(int error) {
-                if (!levelChosen || feedbackText == null) return;
+                if (!levelChosen) return;
                 listenButton.setEnabled(true);
 
                 if (partialMatchedTarget) {
@@ -526,11 +536,8 @@ public class MainActivity extends Activity {
 
                 clearHeard();
                 feedbackText.setText("🔁");
-
                 if (error == SpeechRecognizer.ERROR_SPEECH_TIMEOUT) {
                     speak("Jag hörde inget. Försök igen.");
-                } else if (error == SpeechRecognizer.ERROR_NO_MATCH) {
-                    speak("Jag kunde inte tolka ordet. Försök igen.");
                 } else {
                     speak("Försök igen.");
                 }
@@ -566,8 +573,8 @@ public class MainActivity extends Activity {
                 }
 
                 if (partialMatchedTarget && !correct) {
-                    best = currentWord;
                     correct = true;
+                    best = currentWord;
                 }
 
                 showHeard(correct ? currentWord : best, correct);
@@ -601,8 +608,8 @@ public class MainActivity extends Activity {
                         heardText.setVisibility(View.VISIBLE);
                         heardLabel.setText("JAG HÖR");
                         heardText.setText(latestPartial.toUpperCase(new Locale("sv", "SE")));
-                        heardText.setTextColor(Color.rgb(35, 70, 53));
-                        heardText.setBackgroundColor(Color.rgb(238, 244, 239));
+                        heardText.setTextColor(Color.BLACK);
+                        heardText.setBackground(makeRectDrawable(Color.WHITE, Color.BLACK));
                     }
                 }
             }
@@ -612,32 +619,26 @@ public class MainActivity extends Activity {
     }
 
     private void startListening() {
-        if (!levelChosen || position >= 10 || celebrating) return;
+        if (celebrating || !levelChosen || position >= 10) return;
 
         if (checkSelfPermission(Manifest.permission.RECORD_AUDIO)
                 != PackageManager.PERMISSION_GRANTED) {
-            requestPermissions(
-                    new String[]{Manifest.permission.RECORD_AUDIO},
-                    AUDIO_PERMISSION_REQUEST
-            );
+            requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO},
+                    AUDIO_PERMISSION_REQUEST);
             return;
         }
 
-        if (speechRecognizer == null) {
-            setupSpeechRecognizer();
-        }
+        if (speechRecognizer == null) setupSpeechRecognizer();
 
-        if (tts != null) {
-            tts.stop();
-        }
+        if (tts != null) tts.stop();
 
         clearHeard();
+        latestPartial = "";
+        partialMatchedTarget = false;
 
         Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
-        intent.putExtra(
-                RecognizerIntent.EXTRA_LANGUAGE_MODEL,
-                RecognizerIntent.LANGUAGE_MODEL_WEB_SEARCH
-        );
+        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                RecognizerIntent.LANGUAGE_MODEL_WEB_SEARCH);
         intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, "sv-SE");
         intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, "sv-SE");
         intent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 10);
@@ -654,8 +655,6 @@ public class MainActivity extends Activity {
             intent.putStringArrayListExtra(RecognizerIntent.EXTRA_BIASING_STRINGS, bias);
         }
 
-        latestPartial = "";
-        partialMatchedTarget = false;
         listenButton.setEnabled(false);
         feedbackText.setText("🎤 …");
 
@@ -678,8 +677,6 @@ public class MainActivity extends Activity {
             if (part.equals(t)) return true;
         }
 
-        // Android may transcribe the spoken Swedish words "vi" and "är"
-        // as the single letters V and R.
         if (t.equals("vi") && h.equals("v")) return true;
         if (t.equals("är") && h.equals("r")) return true;
 
@@ -694,7 +691,7 @@ public class MainActivity extends Activity {
     }
 
     private void playStepEffect() {
-        toneGenerator.startTone(ToneGenerator.TONE_PROP_ACK, 100);
+        toneGenerator.startTone(ToneGenerator.TONE_PROP_ACK, 90);
     }
 
     private void playFinalCelebration() {
@@ -710,19 +707,26 @@ public class MainActivity extends Activity {
         ScaleAnimation pop = new ScaleAnimation(
                 0.55f, 1.15f, 0.55f, 1.15f,
                 Animation.RELATIVE_TO_SELF, 0.5f,
-                Animation.RELATIVE_TO_SELF, 0.5f);
+                Animation.RELATIVE_TO_SELF, 0.5f
+        );
         pop.setDuration(300);
         pop.setRepeatMode(Animation.REVERSE);
         pop.setRepeatCount(3);
         celebrationText.startAnimation(pop);
 
+        AlphaAnimation flash = new AlphaAnimation(0.35f, 1.0f);
+        flash.setDuration(180);
+        flash.setRepeatMode(Animation.REVERSE);
+        flash.setRepeatCount(3);
+        board.startAnimation(flash);
+
         if (heroView != null) {
             heroView.animate()
                     .rotationBy(720f)
-                    .translationY(-dp(42))
-                    .scaleX(1.55f)
-                    .scaleY(1.55f)
-                    .setDuration(1250)
+                    .translationY(-dp(38))
+                    .scaleX(1.4f)
+                    .scaleY(1.4f)
+                    .setDuration(1200)
                     .withEndAction(() -> {
                         if (heroView != null) {
                             heroView.animate()
@@ -747,13 +751,11 @@ public class MainActivity extends Activity {
         listenButton.setEnabled(false);
 
         if (position >= 10) {
-            wordText.setText("🏆");
-            progressText.setText("🏆 MÅL!");
+            wordText.setText("MÅL!");
+            progressText.setText("MÅL!");
             playFinalCelebration();
 
-            handler.postDelayed(() -> {
-                showLevelSelection();
-            }, 5200);
+            handler.postDelayed(this::showLevelSelection, 5200);
             return;
         }
 
@@ -771,17 +773,12 @@ public class MainActivity extends Activity {
             showWord();
             feedbackText.setText("🎤");
             celebrating = false;
-            // No spoken success message between words; this also prevents TTS
-            // from competing with the next microphone attempt.
-        }, 700);
+        }, 650);
     }
 
     @Override
-    public void onRequestPermissionsResult(
-            int requestCode,
-            String[] permissions,
-            int[] grantResults
-    ) {
+    public void onRequestPermissionsResult(int requestCode, String[] permissions,
+                                           int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
 
         if (requestCode == AUDIO_PERMISSION_REQUEST) {
@@ -790,7 +787,7 @@ public class MainActivity extends Activity {
                 speak("Bra. Nu kan jag lyssna. Läs ordet.");
                 handler.postDelayed(this::startListening, 700);
             } else {
-                if (feedbackText != null) feedbackText.setText("🎤 🚫");
+                feedbackText.setText("🎤 🚫");
                 speak("Mikrofonen behöver tillåtelse för att kunna lyssna.");
             }
         }
@@ -798,16 +795,12 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onDestroy() {
-        if (speechRecognizer != null) {
-            speechRecognizer.destroy();
-        }
+        if (speechRecognizer != null) speechRecognizer.destroy();
         if (tts != null) {
             tts.stop();
             tts.shutdown();
         }
-        if (toneGenerator != null) {
-            toneGenerator.release();
-        }
+        if (toneGenerator != null) toneGenerator.release();
         handler.removeCallbacksAndMessages(null);
         super.onDestroy();
     }
@@ -818,6 +811,16 @@ public class MainActivity extends Activity {
                 LinearLayout.LayoutParams.WRAP_CONTENT
         );
         p.bottomMargin = bottomMargin;
+        return p;
+    }
+
+    private LinearLayout.LayoutParams wrapWrap(int bottomMargin) {
+        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+        );
+        p.bottomMargin = bottomMargin;
+        p.gravity = Gravity.CENTER_HORIZONTAL;
         return p;
     }
 

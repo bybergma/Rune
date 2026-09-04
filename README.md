@@ -1,36 +1,27 @@
 # Runes Läsäventyr
 
-## Version 0.6 – tre nivåer
+## Version 0.7
 
-### Nivå 1
-IS, GÅ, ÅT, DU, VI, OM, BY, ÄR, AJ, HA
+Uppdateringar i denna version:
 
-### Nivå 2
-SOL, KOR, ROR, BIL, MUS, HUS, BOK, MAT, FIS
+- Ordet visas nu på **samma rad**, till exempel `BOLL` i stället för bokstäver under varandra.
+- Färgprofilen är ändrad till **vit, röd och svart**.
+- Figuren på spelplanen är ersatt med **Pikachu**.
+- Målet/priset visas som en **Pokémon-boll**.
+- Appen har fått en **ny appikon** baserad på Pokémon-bollen.
+- Mikrofonresultatet visas fortfarande stort i **VERSALER**.
+- När barnet når mål säger appen:
+  **"Hurra hurra! Du kan läsa!"**
+- Vid målgång kommer en tydligare slutanimation där figuren snurrar/dansar och flyger iväg.
 
-KATT är flyttat till nivå 3 för att hålla nivåerna mer konsekventa.
-Nivå 2 har därför nio unika ord; på en 10-stegsbana kan ett ord återkomma.
-
-### Nivå 3
-BOLL, KATT, HUND, BORD, STOL, GLAS, FISK, LÄSA, MÅNE, BAJS
-
-## Taligenkänning
-- använder ett språkmodellsläge mer lämpat för korta sökord,
-- hämtar upp till 10 alternativa tolkningar,
-- behåller delresultat,
-- ett exakt korrekt delresultat får räknas även om Android tappar det i slutresultatet,
-- Android 13+ biasas mot aktuellt ord,
-- VI kan accepteras om Android transkriberar det som `V`,
-- ÄR kan accepteras om Android transkriberar det som `R`.
-
-## Belöning
-Efter varje rätt ord flyttar figuren ett steg med ett kort ljud.
-
-När barnet når mål:
-- appen säger exakt **“Hurra hurra! Du kan läsa!”**
-- gubben snurrar/dansar och flyger iväg
-- appen går därefter tillbaka till nivåvalet.
+Tre nivåer finns kvar:
+1. IS, GÅ, ÅT, DU, VI, OM, BY, ÄR, AJ, HA
+2. SOL, KOR, ROR, BIL, MUS, HUS, BOK, MAT, FIS
+3. BOLL, KATT, HUND, BORD, STOL, GLAS, FISK, LÄSA, MÅNE, BAJS
 
 ## Bygg APK
+
 Push till `main` startar GitHub Actions-workflowet **Build Android APK**.
-Ladda ner artifact **Runes-Lasaventyr-APK** och installera `app-debug.apk`.
+När bygget är klart, ladda ner artifact **Runes-Lasaventyr-APK** och installera `app-debug.apk`.
+
+> Obs: den här versionen använder Pokémon-bilderna som du skickade in. Om appen någon gång ska publiceras offentligt bör dessa bytas ut mot egna originalfigurer och egen ikon.
