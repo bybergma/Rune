@@ -6,12 +6,27 @@ android {
     namespace 'se.runeslasaventyr'
     compileSdk 35
 
+    signingConfigs {
+        debug {
+            storeFile file('rune-debug.keystore')
+            storePassword 'rune1234'
+            keyAlias 'rune'
+            keyPassword 'rune1234'
+        }
+    }
+
     defaultConfig {
         applicationId "se.runeslasaventyr"
         minSdk 26
         targetSdk 35
-        versionCode 1
-        versionName "0.1"
+        versionCode 5
+        versionName "0.5"
+    }
+
+    buildTypes {
+        debug {
+            signingConfig signingConfigs.debug
+        }
     }
 
     compileOptions {
