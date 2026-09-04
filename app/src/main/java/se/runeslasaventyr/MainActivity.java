@@ -6,12 +6,20 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.graphics.Typeface;
+import android.media.AudioManager;
+import android.media.ToneGenerator;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.speech.RecognitionListener;
 import android.speech.RecognizerIntent;
 import android.speech.SpeechRecognizer;
+import android.speech.tts.TextToSpeech;
 import android.view.Gravity;
 import android.view.View;
+import android.view.animation.AlphaAnimation;
+import android.view.animation.Animation;
+import android.view.animation.ScaleAnimation;
 import android.widget.Button;
 import android.widget.GridLayout;
 import android.widget.LinearLayout;
@@ -38,14 +46,24 @@ public class MainActivity extends Activity {
     private GridLayout board;
     private TextView startText;
     private TextView wordText;
+    private TextView heardLabel;
+    private TextView heardText;
     private TextView feedbackText;
     private TextView progressText;
+    private TextView celebrationText;
     private Button listenButton;
 
     private SpeechRecognizer speechRecognizer;
+    private TextToSpeech tts;
+    private ToneGenerator toneGenerator;
+
     private String currentWord = "sol";
     private int position = 0;
     private int wordIndex = 0;
+    private boolean ttsReady = false;
+    private boolean celebrating = false;
+
+    private final Handler handler = new Handler(Looper.getMainLooper());
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -57,13 +75,36 @@ public class MainActivity extends Activity {
         buildUi();
         renderBoard();
         showWord();
+        setupTextToSpeech();
+
+        toneGenerator = new ToneGenerator(AudioManager.STREAM_MUSIC, 90);
 
         if (SpeechRecognizer.isRecognitionAvailable(this)) {
             setupSpeechRecognizer();
         } else {
             listenButton.setEnabled(false);
-            feedbackText.setText("Taligenkänning finns inte på den här telefonen.");
+            feedbackText.setText("Taligenkänning saknas");
         }
+    }
+
+    private void setupTextToSpeech() {
+        tts = new TextToSpeech(this, status -> {
+            if (status == TextToSpeech.SUCCESS) {
+                int result = tts.setLanguage(new Locale("sv", "SE"));
+                ttsReady = result != TextToSpeech.LANG_MISSING_DATA
+                        && result != TextToSpeech.LANG_NOT_SUPPORTED;
+                tts.setSpeechRate(0.92f);
+
+                if (ttsReady) {
+                    speak("Tryck på mikrofonen och läs ordet.");
+                }
+            }
+        });
+    }
+
+    private void speak(String text) {
+        if (!ttsReady || tts == null) return;
+        tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "RuneSpeech");
     }
 
     private void buildUi() {
@@ -85,11 +126,12 @@ public class MainActivity extends Activity {
         root.addView(title, matchWrap(dp(8)));
 
         TextView subtitle = new TextView(this);
-        subtitle.setText("Läs 10 ord och ta dig hela vägen till målet!");
+        subtitle.setText("10 ord till skatten!");
         subtitle.setTextColor(Color.WHITE);
-        subtitle.setTextSize(16);
+        subtitle.setTextSize(18);
+        subtitle.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         subtitle.setGravity(Gravity.CENTER);
-        root.addView(subtitle, matchWrap(dp(16)));
+        root.addView(subtitle, matchWrap(dp(14)));
 
         startText = new TextView(this);
         startText.setText("START  🧙");
@@ -109,69 +151,104 @@ public class MainActivity extends Activity {
 
         progressText = new TextView(this);
         progressText.setTextColor(Color.WHITE);
-        progressText.setTextSize(17);
+        progressText.setTextSize(18);
         progressText.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         progressText.setGravity(Gravity.CENTER);
-        root.addView(progressText, matchWrap(dp(18)));
+        root.addView(progressText, matchWrap(dp(12)));
+
+        celebrationText = new TextView(this);
+        celebrationText.setText("⭐ HURRA! ⭐");
+        celebrationText.setTextColor(Color.rgb(255, 232, 94));
+        celebrationText.setTextSize(34);
+        celebrationText.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        celebrationText.setGravity(Gravity.CENTER);
+        celebrationText.setVisibility(View.GONE);
+        root.addView(celebrationText, matchWrap(dp(8)));
 
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
-        card.setPadding(dp(18), dp(20), dp(18), dp(20));
+        card.setPadding(dp(18), dp(18), dp(18), dp(20));
         card.setBackgroundColor(Color.rgb(255, 248, 223));
         root.addView(card, matchWrap(dp(0)));
 
         TextView instruction = new TextView(this);
-        instruction.setText("Läs ordet högt");
+        instruction.setText("LÄS ORDET");
         instruction.setTextColor(Color.rgb(80, 95, 85));
         instruction.setTextSize(18);
         instruction.setGravity(Gravity.CENTER);
         instruction.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
-        card.addView(instruction, matchWrap(dp(6)));
+        card.addView(instruction, matchWrap(dp(4)));
 
         wordText = new TextView(this);
         wordText.setTextColor(Color.rgb(23, 50, 41));
-        wordText.setTextSize(66);
+        wordText.setTextSize(70);
         wordText.setGravity(Gravity.CENTER);
         wordText.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         wordText.setLetterSpacing(0.12f);
-        card.addView(wordText, matchWrap(dp(14)));
+        wordText.setPadding(dp(4), dp(5), dp(4), dp(10));
+        card.addView(wordText, matchWrap(dp(8)));
 
         listenButton = new Button(this);
-        listenButton.setText("🎤  LÄS ORDET");
-        listenButton.setTextSize(20);
-        listenButton.setAllCaps(false);
-        listenButton.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
-        listenButton.setMinHeight(dp(64));
+        listenButton.setText("🎤");
+        listenButton.setContentDescription("Tryck för att läsa ordet");
+        listenButton.setTextSize(38);
+        listenButton.setMinHeight(dp(76));
         listenButton.setOnClickListener(v -> startListening());
-        card.addView(listenButton, matchWrap(dp(12)));
+        card.addView(listenButton, matchWrap(dp(8)));
+
+        Button repeatInstructionButton = new Button(this);
+        repeatInstructionButton.setText("🔊  LYSSNA");
+        repeatInstructionButton.setContentDescription("Spela upp instruktionen igen");
+        repeatInstructionButton.setTextSize(18);
+        repeatInstructionButton.setAllCaps(false);
+        repeatInstructionButton.setOnClickListener(v ->
+                speak("Tryck på mikrofonen och läs ordet."));
+        card.addView(repeatInstructionButton, matchWrap(dp(14)));
+
+        heardLabel = new TextView(this);
+        heardLabel.setText("JAG HÖRDE");
+        heardLabel.setTextColor(Color.rgb(95, 105, 98));
+        heardLabel.setTextSize(14);
+        heardLabel.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        heardLabel.setGravity(Gravity.CENTER);
+        heardLabel.setVisibility(View.GONE);
+        card.addView(heardLabel, matchWrap(dp(2)));
+
+        heardText = new TextView(this);
+        heardText.setText("");
+        heardText.setTextColor(Color.rgb(35, 70, 53));
+        heardText.setTextSize(56);
+        heardText.setGravity(Gravity.CENTER);
+        heardText.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        heardText.setPadding(dp(8), dp(10), dp(8), dp(10));
+        heardText.setVisibility(View.GONE);
+        card.addView(heardText, matchWrap(dp(6)));
 
         feedbackText = new TextView(this);
-        feedbackText.setText("Tryck på mikrofonen och säg ordet.");
+        feedbackText.setText("🎤");
         feedbackText.setTextColor(Color.rgb(35, 70, 53));
-        feedbackText.setTextSize(18);
+        feedbackText.setTextSize(22);
         feedbackText.setGravity(Gravity.CENTER);
         feedbackText.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
-        feedbackText.setPadding(dp(8), dp(12), dp(8), dp(12));
-        card.addView(feedbackText, matchWrap(dp(4)));
-
-        TextView privacy = new TextView(this);
-        privacy.setText("Appen sparar inte inspelningen. Den använder Androids taligenkänning för att jämföra det hörda ordet med ordet på skärmen.");
-        privacy.setTextColor(Color.rgb(100, 112, 104));
-        privacy.setTextSize(12);
-        privacy.setGravity(Gravity.CENTER);
-        card.addView(privacy, matchWrap(dp(0)));
+        feedbackText.setPadding(dp(8), dp(8), dp(8), dp(8));
+        card.addView(feedbackText, matchWrap(dp(0)));
 
         Button reset = new Button(this);
-        reset.setText("Börja om banan");
-        reset.setAllCaps(false);
+        reset.setText("↻");
+        reset.setContentDescription("Börja om banan");
+        reset.setTextSize(24);
         reset.setOnClickListener(v -> {
             position = 0;
             wordIndex = 0;
+            celebrating = false;
             Collections.shuffle(words);
             currentWord = words.get(0);
-            feedbackText.setText("Ny bana. Tryck på mikrofonen och läs ordet.");
+            celebrationText.setVisibility(View.GONE);
+            clearHeard();
             renderBoard();
             showWord();
+            feedbackText.setText("🎤");
+            speak("Ny bana. Tryck på mikrofonen och läs ordet.");
         });
         root.addView(reset, matchWrap(dp(0)));
 
@@ -221,15 +298,14 @@ public class MainActivity extends Activity {
         }
 
         if (position < 10) {
-            int left = 10 - position;
-            progressText.setText(left + (left == 1 ? " ord kvar till målet" : " ord kvar till målet"));
+            progressText.setText((10 - position) + " kvar");
         } else {
-            progressText.setText("🏆 MÅL! Du klarade hela banan!");
+            progressText.setText("🏆 MÅL!");
         }
     }
 
     private void showWord() {
-        wordText.setText(spaced(currentWord).toUpperCase(Locale.forLanguageTag("sv-SE")));
+        wordText.setText(spaced(currentWord).toUpperCase(new Locale("sv", "SE")));
         listenButton.setEnabled(position < 10 && SpeechRecognizer.isRecognitionAvailable(this));
     }
 
@@ -242,32 +318,59 @@ public class MainActivity extends Activity {
         return b.toString();
     }
 
+    private void clearHeard() {
+        heardLabel.setVisibility(View.GONE);
+        heardText.setVisibility(View.GONE);
+        heardText.setText("");
+        heardText.setBackgroundColor(Color.TRANSPARENT);
+    }
+
+    private void showHeard(String text, boolean correct) {
+        heardLabel.setVisibility(View.VISIBLE);
+        heardText.setVisibility(View.VISIBLE);
+        heardText.setText(text.toUpperCase(new Locale("sv", "SE")));
+        heardText.setTextColor(correct
+                ? Color.rgb(24, 105, 48)
+                : Color.rgb(150, 55, 45));
+        heardText.setBackgroundColor(correct
+                ? Color.rgb(218, 247, 220)
+                : Color.rgb(255, 229, 218));
+
+        ScaleAnimation pop = new ScaleAnimation(
+                0.75f, 1.0f, 0.75f, 1.0f,
+                Animation.RELATIVE_TO_SELF, 0.5f,
+                Animation.RELATIVE_TO_SELF, 0.5f);
+        pop.setDuration(240);
+        heardText.startAnimation(pop);
+    }
+
     private void setupSpeechRecognizer() {
         speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this);
         speechRecognizer.setRecognitionListener(new RecognitionListener() {
             @Override public void onReadyForSpeech(Bundle params) {
-                feedbackText.setText("Jag lyssnar…");
+                feedbackText.setText("👂");
             }
 
             @Override public void onBeginningOfSpeech() {
-                feedbackText.setText("Fortsätt läsa…");
+                feedbackText.setText("👂 …");
             }
 
             @Override public void onRmsChanged(float rmsdB) {}
             @Override public void onBufferReceived(byte[] buffer) {}
 
             @Override public void onEndOfSpeech() {
-                feedbackText.setText("Kontrollerar…");
+                feedbackText.setText("⏳");
             }
 
             @Override public void onError(int error) {
                 listenButton.setEnabled(true);
-                if (error == SpeechRecognizer.ERROR_NO_MATCH) {
-                    feedbackText.setText("Jag hörde inte ordet tydligt. Försök igen.");
-                } else if (error == SpeechRecognizer.ERROR_SPEECH_TIMEOUT) {
-                    feedbackText.setText("Jag hörde inget. Tryck och försök igen.");
+                feedbackText.setText("🔁");
+                clearHeard();
+
+                if (error == SpeechRecognizer.ERROR_SPEECH_TIMEOUT) {
+                    speak("Jag hörde inget. Försök igen.");
                 } else {
-                    feedbackText.setText("Kunde inte tolka rösten. Försök igen.");
+                    speak("Försök igen.");
                 }
             }
 
@@ -278,22 +381,30 @@ public class MainActivity extends Activity {
                         results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
 
                 if (matches == null || matches.isEmpty()) {
-                    feedbackText.setText("Jag kunde inte höra ordet. Försök igen.");
+                    feedbackText.setText("🔁");
+                    clearHeard();
+                    speak("Försök igen.");
                     return;
                 }
 
+                String best = matches.get(0);
                 boolean correct = false;
+
                 for (String heard : matches) {
                     if (matchesTarget(heard, currentWord)) {
                         correct = true;
+                        best = heard;
                         break;
                     }
                 }
 
+                showHeard(best, correct);
+
                 if (correct) {
                     advance();
                 } else {
-                    feedbackText.setText("Jag hörde: “" + matches.get(0) + "”. Försök igen.");
+                    feedbackText.setText("🔁 FÖRSÖK IGEN");
+                    speak("Nästan. Försök igen.");
                 }
             }
 
@@ -303,7 +414,7 @@ public class MainActivity extends Activity {
     }
 
     private void startListening() {
-        if (position >= 10) return;
+        if (position >= 10 || celebrating) return;
 
         if (checkSelfPermission(Manifest.permission.RECORD_AUDIO)
                 != PackageManager.PERMISSION_GRANTED) {
@@ -318,6 +429,12 @@ public class MainActivity extends Activity {
             setupSpeechRecognizer();
         }
 
+        if (tts != null) {
+            tts.stop();
+        }
+
+        clearHeard();
+
         Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
         intent.putExtra(
                 RecognizerIntent.EXTRA_LANGUAGE_MODEL,
@@ -329,8 +446,15 @@ public class MainActivity extends Activity {
         intent.putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, false);
 
         listenButton.setEnabled(false);
-        feedbackText.setText("Startar mikrofonen…");
-        speechRecognizer.startListening(intent);
+        feedbackText.setText("🎤 …");
+
+        try {
+            speechRecognizer.startListening(intent);
+        } catch (Exception e) {
+            listenButton.setEnabled(true);
+            feedbackText.setText("🔁");
+            speak("Försök igen.");
+        }
     }
 
     private boolean matchesTarget(String heard, String target) {
@@ -348,35 +472,70 @@ public class MainActivity extends Activity {
 
     private String normalize(String s) {
         if (s == null) return "";
-        String value = s.toLowerCase(Locale.forLanguageTag("sv-SE")).trim();
+        String value = s.toLowerCase(new Locale("sv", "SE")).trim();
         value = Normalizer.normalize(value, Normalizer.Form.NFC);
         return value.replaceAll("[^a-zåäö ]", "").replaceAll("\\s+", " ");
     }
 
+    private void playSuccessEffect() {
+        toneGenerator.startTone(ToneGenerator.TONE_PROP_BEEP, 120);
+        handler.postDelayed(() ->
+                toneGenerator.startTone(ToneGenerator.TONE_PROP_ACK, 180), 150);
+        handler.postDelayed(() ->
+                toneGenerator.startTone(ToneGenerator.TONE_DTMF_9, 220), 340);
+
+        celebrationText.setVisibility(View.VISIBLE);
+        celebrationText.setText("⭐ HURRA! RÄTT! ⭐");
+
+        ScaleAnimation pop = new ScaleAnimation(
+                0.55f, 1.15f, 0.55f, 1.15f,
+                Animation.RELATIVE_TO_SELF, 0.5f,
+                Animation.RELATIVE_TO_SELF, 0.5f);
+        pop.setDuration(300);
+        pop.setRepeatMode(Animation.REVERSE);
+        pop.setRepeatCount(1);
+        celebrationText.startAnimation(pop);
+
+        AlphaAnimation flash = new AlphaAnimation(0.25f, 1.0f);
+        flash.setDuration(180);
+        flash.setRepeatMode(Animation.REVERSE);
+        flash.setRepeatCount(3);
+        board.startAnimation(flash);
+
+        speak("Hurra! Rätt!");
+    }
+
     private void advance() {
+        celebrating = true;
         position++;
         renderBoard();
+        feedbackText.setText("✅ RÄTT!");
+        listenButton.setEnabled(false);
+
+        playSuccessEffect();
 
         if (position >= 10) {
             wordText.setText("🏆");
-            feedbackText.setText("RÄTT! Du kom i mål!");
-            listenButton.setEnabled(false);
+            celebrationText.setText("🏆 DU KLARADE BANAN! 🏆");
+            handler.postDelayed(() ->
+                    speak("Hurra! Du klarade hela banan!"), 900);
             return;
         }
 
-        feedbackText.setText("✅ Rätt! Ett steg framåt.");
-
-        wordIndex++;
-        if (wordIndex >= words.size()) {
-            wordIndex = 0;
-            Collections.shuffle(words);
-        }
-        currentWord = words.get(wordIndex);
-
-        wordText.postDelayed(() -> {
+        handler.postDelayed(() -> {
+            wordIndex++;
+            if (wordIndex >= words.size()) {
+                wordIndex = 0;
+                Collections.shuffle(words);
+            }
+            currentWord = words.get(wordIndex);
+            clearHeard();
+            celebrationText.setVisibility(View.GONE);
             showWord();
-            feedbackText.setText("Nästa ord. Tryck på mikrofonen.");
-        }, 700);
+            feedbackText.setText("🎤");
+            celebrating = false;
+            speak("Nästa ord. Tryck på mikrofonen och läs ordet.");
+        }, 1700);
     }
 
     @Override
@@ -390,9 +549,11 @@ public class MainActivity extends Activity {
         if (requestCode == AUDIO_PERMISSION_REQUEST) {
             if (grantResults.length > 0
                     && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                startListening();
+                speak("Bra. Nu kan jag lyssna. Läs ordet.");
+                handler.postDelayed(this::startListening, 700);
             } else {
-                feedbackText.setText("Mikrofonbehörighet behövs för att appen ska kunna kontrollera läsningen.");
+                feedbackText.setText("🎤 🚫");
+                speak("Mikrofonen behöver tillåtelse för att kunna lyssna.");
             }
         }
     }
@@ -402,6 +563,14 @@ public class MainActivity extends Activity {
         if (speechRecognizer != null) {
             speechRecognizer.destroy();
         }
+        if (tts != null) {
+            tts.stop();
+            tts.shutdown();
+        }
+        if (toneGenerator != null) {
+            toneGenerator.release();
+        }
+        handler.removeCallbacksAndMessages(null);
         super.onDestroy();
     }
 
