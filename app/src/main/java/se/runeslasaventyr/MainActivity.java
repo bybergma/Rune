@@ -11,6 +11,7 @@ import android.media.ToneGenerator;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.Build;
 import android.speech.RecognitionListener;
 import android.speech.RecognizerIntent;
 import android.speech.SpeechRecognizer;
@@ -62,6 +63,7 @@ public class MainActivity extends Activity {
     private int wordIndex = 0;
     private boolean ttsReady = false;
     private boolean celebrating = false;
+    private String latestPartial = "";
 
     private final Handler handler = new Handler(Looper.getMainLooper());
 
@@ -349,6 +351,7 @@ public class MainActivity extends Activity {
         speechRecognizer.setRecognitionListener(new RecognitionListener() {
             @Override public void onReadyForSpeech(Bundle params) {
                 feedbackText.setText("👂");
+                latestPartial = "";
             }
 
             @Override public void onBeginningOfSpeech() {
@@ -364,11 +367,23 @@ public class MainActivity extends Activity {
 
             @Override public void onError(int error) {
                 listenButton.setEnabled(true);
-                feedbackText.setText("🔁");
+
+                // Short isolated words can produce a partial hypothesis and then NO_MATCH.
+                // Keep that hypothesis visible so we can see what Android actually heard.
+                if (!latestPartial.isEmpty()) {
+                    showHeard(latestPartial, false);
+                    feedbackText.setText("🔁 FÖRSÖK IGEN");
+                    speak("Jag hörde " + latestPartial + ". Försök igen.");
+                    return;
+                }
+
                 clearHeard();
+                feedbackText.setText("🔁");
 
                 if (error == SpeechRecognizer.ERROR_SPEECH_TIMEOUT) {
                     speak("Jag hörde inget. Försök igen.");
+                } else if (error == SpeechRecognizer.ERROR_NO_MATCH) {
+                    speak("Jag kunde inte tolka ordet. Försök igen.");
                 } else {
                     speak("Försök igen.");
                 }
@@ -381,8 +396,12 @@ public class MainActivity extends Activity {
                         results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
 
                 if (matches == null || matches.isEmpty()) {
+                    if (!latestPartial.isEmpty()) {
+                        showHeard(latestPartial, false);
+                    } else {
+                        clearHeard();
+                    }
                     feedbackText.setText("🔁");
-                    clearHeard();
                     speak("Försök igen.");
                     return;
                 }
@@ -404,11 +423,27 @@ public class MainActivity extends Activity {
                     advance();
                 } else {
                     feedbackText.setText("🔁 FÖRSÖK IGEN");
-                    speak("Nästan. Försök igen.");
+                    speak("Jag hörde " + best + ". Försök igen.");
                 }
             }
 
-            @Override public void onPartialResults(Bundle partialResults) {}
+            @Override public void onPartialResults(Bundle partialResults) {
+                ArrayList<String> partial =
+                        partialResults.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
+
+                if (partial != null && !partial.isEmpty()) {
+                    latestPartial = partial.get(0).trim();
+                    if (!latestPartial.isEmpty()) {
+                        heardLabel.setVisibility(View.VISIBLE);
+                        heardText.setVisibility(View.VISIBLE);
+                        heardLabel.setText("JAG HÖR");
+                        heardText.setText(latestPartial.toUpperCase(new Locale("sv", "SE")));
+                        heardText.setTextColor(Color.rgb(35, 70, 53));
+                        heardText.setBackgroundColor(Color.rgb(238, 244, 239));
+                    }
+                }
+            }
+
             @Override public void onEvent(int eventType, Bundle params) {}
         });
     }
@@ -442,9 +477,23 @@ public class MainActivity extends Activity {
         );
         intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, "sv-SE");
         intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, "sv-SE");
-        intent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 5);
-        intent.putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, false);
+        intent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 8);
+        intent.putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true);
 
+        // Slightly longer listening window for very short isolated words.
+        // The installed recognition service may choose to ignore these hints.
+        intent.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS, 1200L);
+        intent.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 1200L);
+        intent.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 700L);
+
+        // Android 13+ can favour the word currently shown on screen.
+        if (Build.VERSION.SDK_INT >= 33) {
+            ArrayList<String> bias = new ArrayList<>();
+            bias.add(currentWord);
+            intent.putStringArrayListExtra(RecognizerIntent.EXTRA_BIASING_STRINGS, bias);
+        }
+
+        latestPartial = "";
         listenButton.setEnabled(false);
         feedbackText.setText("🎤 …");
 

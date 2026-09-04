@@ -1,23 +1,15 @@
 # Runes Läsäventyr
 
-## Version 0.2
+## Version 0.3 – bättre fångst av korta ord
 
-- Appen pratar instruktionerna på svenska.
-- Korta ord visas med stora bokstäver.
-- Barnet trycker på mikrofonen och läser ordet.
-- Det som taligenkänningen hör visas mycket stort i VERSALER.
-- Rätt svar ger spelljud, animation och uppläst "Hurra! Rätt!".
-- Figuren flyttar ett steg på en bana med 10 steg.
-- Fel svar ger uppläst "Försök igen".
-- Appen lagrar inte ljudinspelningen.
+- Visar delresultat från mikrofonen direkt medan barnet pratar.
+- Om Android avslutar med `NO_MATCH` men hann höra något visas det ändå i stora VERSALER.
+- Lite längre lyssningsfönster för korta ord som MIL och SIL.
+- Upp till åtta alternativa igenkänningsresultat används.
+- På Android 13+ biasas taligenkänningen mot aktuellt målord.
+- Rätt svar ger ljud, "Hurra! Rätt!" och flyttar figuren.
+- Fel svar läser upp vad appen uppfattade och ber barnet försöka igen.
 
 ## Bygg APK
 
-Varje push till `main` startar GitHub Actions-workflowet **Build Android APK**.
-
-När bygget är klart:
-1. Öppna **Actions**.
-2. Öppna senaste **Build Android APK**.
-3. Ladda ner **Runes-Lasaventyr-APK** under **Artifacts**.
-4. Packa upp ZIP-filen.
-5. Installera `app-debug.apk`.
+Push till `main` startar GitHub Actions-workflowet **Build Android APK**. Ladda därefter ner artifact `Runes-Lasaventyr-APK`.
