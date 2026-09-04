@@ -1,25 +1,36 @@
 # Runes Läsäventyr
 
-## Version 0.5 – nivåer 2, 3, 4 och 5 bokstäver
+## Version 0.6 – tre nivåer
 
-När appen startar frågar den högt:
-**”Hur många bokstäver vill du läsa? Tryck på två, tre, fyra eller fem.”**
+### Nivå 1
+IS, GÅ, ÅT, DU, VI, OM, BY, ÄR, AJ, HA
 
-Nivåer:
-- **2 bokstäver:** IS, VI, SE, NU, ÅL, AV samt enkla sammanljudningar som SA, SO, MI, MO, RA och RO.
-- **3 bokstäver:** SOL, MUS, RAM, MIL m.fl.
-- **4 bokstäver:** MÅNE, SOVA, LEKA, MÅLA m.fl.
-- **5 bokstäver:** BANAN, KANIN, ROBOT, SOLEN m.fl.
+### Nivå 2
+SOL, KOR, ROR, BIL, MUS, HUS, BOK, MAT, FIS
 
-Alla nivåer använder samma 10-stegsbana och mikrofonfunktion:
-- det appen hör visas stort i VERSALER,
-- rätt svar ger ljud, animation och ”Hurra! Rätt!”,
-- figuren flyttar ett steg,
-- fel/osäkert svar får ett nytt försök.
+KATT är flyttat till nivå 3 för att hålla nivåerna mer konsekventa.
+Nivå 2 har därför nio unika ord; på en 10-stegsbana kan ett ord återkomma.
+
+### Nivå 3
+BOLL, KATT, HUND, BORD, STOL, GLAS, FISK, LÄSA, MÅNE, BAJS
+
+## Taligenkänning
+- använder ett språkmodellsläge mer lämpat för korta sökord,
+- hämtar upp till 10 alternativa tolkningar,
+- behåller delresultat,
+- ett exakt korrekt delresultat får räknas även om Android tappar det i slutresultatet,
+- Android 13+ biasas mot aktuellt ord,
+- VI kan accepteras om Android transkriberar det som `V`,
+- ÄR kan accepteras om Android transkriberar det som `R`.
+
+## Belöning
+Efter varje rätt ord flyttar figuren ett steg med ett kort ljud.
+
+När barnet når mål:
+- appen säger exakt **“Hurra hurra! Du kan läsa!”**
+- gubben snurrar/dansar och flyger iväg
+- appen går därefter tillbaka till nivåvalet.
 
 ## Bygg APK
-
 Push till `main` startar GitHub Actions-workflowet **Build Android APK**.
-När bygget är klart, ladda ner artifact **Runes-Lasaventyr-APK** och installera `app-debug.apk`.
-
-VersionCode är höjt till 5 och samma debug-keystore som v4 används, så v5 ska kunna installeras som en uppdatering ovanpå v4.
+Ladda ner artifact **Runes-Lasaventyr-APK** och installera `app-debug.apk`.

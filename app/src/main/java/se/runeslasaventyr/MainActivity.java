@@ -38,25 +38,21 @@ public class MainActivity extends Activity {
 
     private static final int AUDIO_PERMISSION_REQUEST = 10;
 
-    private final List<String> words2 = new ArrayList<>(Arrays.asList(
-            "is", "vi", "se", "nu", "ål", "av", "sa", "so",
-            "mi", "mo", "ra", "ro", "ma", "mu", "si", "su"
+    // Nivå 1: två bokstäver
+    private final List<String> level1Words = new ArrayList<>(Arrays.asList(
+            "is", "gå", "åt", "du", "vi", "om", "by", "är", "aj", "ha"
     ));
 
-    private final List<String> words3 = new ArrayList<>(Arrays.asList(
-            "sol", "mus", "ram", "ris", "ros", "sil", "sal", "mor",
-            "fil", "mil", "sur", "mal", "hus", "lus", "ren", "bil",
-            "tak", "ben", "fot", "bok"
+    // Nivå 2: korta ord. KATT ligger i nivå 3 för att hålla denna nivå kortare.
+    // Det finns nio unika ord, så ett ord kan återkomma på en 10-stegsbana.
+    private final List<String> level2Words = new ArrayList<>(Arrays.asList(
+            "sol", "kor", "ror", "bil", "mus", "hus", "bok", "mat", "fis"
     ));
 
-    private final List<String> words4 = new ArrayList<>(Arrays.asList(
-            "måne", "kaka", "sova", "mata", "leka", "resa", "fara", "måla",
-            "ruta", "lura", "sida", "mage", "haka", "lina", "rosa", "sena"
-    ));
-
-    private final List<String> words5 = new ArrayList<>(Arrays.asList(
-            "banan", "kanin", "robot", "solen", "musen", "månen", "rutan", "bilen",
-            "huset", "fågel", "lejon", "karta", "skola", "melon", "tomat", "piano"
+    // Nivå 3: fyra bokstäver
+    private final List<String> level3Words = new ArrayList<>(Arrays.asList(
+            "boll", "katt", "hund", "bord", "stol",
+            "glas", "fisk", "läsa", "måne", "bajs"
     ));
 
     private LinearLayout levelPanel;
@@ -78,13 +74,15 @@ public class MainActivity extends Activity {
 
     private List<String> activeWords = new ArrayList<>();
     private String currentWord = "sol";
-    private int selectedLength = 2;
+    private int selectedLevel = 1;
     private int position = 0;
     private int wordIndex = 0;
     private boolean ttsReady = false;
     private boolean celebrating = false;
     private boolean levelChosen = false;
     private String latestPartial = "";
+    private boolean partialMatchedTarget = false;
+    private TextView heroView;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
 
@@ -122,7 +120,7 @@ public class MainActivity extends Activity {
     }
 
     private void speakLevelQuestion() {
-        speak("Hur många bokstäver vill du läsa? Tryck på två, tre, fyra eller fem.");
+        speak("Vilken nivå vill du läsa? Tryck på ett, två eller tre.");
     }
 
     private void buildUi() {
@@ -157,7 +155,7 @@ public class MainActivity extends Activity {
         root.addView(levelPanel, matchWrap(dp(0)));
 
         TextView question = new TextView(this);
-        question.setText("HUR MÅNGA BOKSTÄVER?");
+        question.setText("VÄLJ NIVÅ");
         question.setTextColor(Color.rgb(23, 50, 41));
         question.setTextSize(24);
         question.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
@@ -177,13 +175,12 @@ public class MainActivity extends Activity {
         choices.setGravity(Gravity.CENTER);
         levelPanel.addView(choices, matchWrap(dp(8)));
 
+        choices.addView(makeLevelButton(1), weightedButtonParams());
         choices.addView(makeLevelButton(2), weightedButtonParams());
         choices.addView(makeLevelButton(3), weightedButtonParams());
-        choices.addView(makeLevelButton(4), weightedButtonParams());
-        choices.addView(makeLevelButton(5), weightedButtonParams());
 
         TextView hint = new TextView(this);
-        hint.setText("2   3   4   5");
+        hint.setText("1      2      3");
         hint.setTextColor(Color.rgb(95, 105, 98));
         hint.setTextSize(16);
         hint.setGravity(Gravity.CENTER);
@@ -196,14 +193,14 @@ public class MainActivity extends Activity {
         button.setTextSize(42);
         button.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         button.setMinHeight(dp(92));
-        button.setContentDescription(length + " bokstäver");
+        button.setContentDescription("Nivå " + length);
         button.setOnClickListener(v -> chooseLevel(length));
         return button;
     }
 
     private LinearLayout.LayoutParams weightedButtonParams() {
         LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(0, dp(100), 1f);
-        p.setMargins(dp(3), dp(0), dp(3), dp(0));
+        p.setMargins(dp(5), dp(0), dp(5), dp(0));
         return p;
     }
 
@@ -242,6 +239,8 @@ public class MainActivity extends Activity {
         board.setColumnCount(5);
         board.setRowCount(2);
         board.setPadding(dp(4), dp(4), dp(4), dp(4));
+        board.setClipChildren(false);
+        board.setClipToPadding(false);
         gamePanel.addView(board, matchWrap(dp(8)));
 
         progressText = new TextView(this);
@@ -329,29 +328,28 @@ public class MainActivity extends Activity {
         card.addView(feedbackText, matchWrap(dp(0)));
 
         Button chooseAgain = new Button(this);
-        chooseAgain.setText("2 · 3 · 4 · 5");
+        chooseAgain.setText("1 · 2 · 3");
         chooseAgain.setContentDescription("Välj en annan nivå");
         chooseAgain.setTextSize(20);
         chooseAgain.setOnClickListener(v -> showLevelSelection());
         gamePanel.addView(chooseAgain, matchWrap(dp(0)));
     }
 
-    private void chooseLevel(int length) {
-        selectedLength = length;
+    private void chooseLevel(int level) {
+        selectedLevel = level;
         levelChosen = true;
         position = 0;
         wordIndex = 0;
         celebrating = false;
         latestPartial = "";
+        partialMatchedTarget = false;
 
-        if (length == 2) {
-            activeWords = new ArrayList<>(words2);
-        } else if (length == 3) {
-            activeWords = new ArrayList<>(words3);
-        } else if (length == 4) {
-            activeWords = new ArrayList<>(words4);
+        if (level == 1) {
+            activeWords = new ArrayList<>(level1Words);
+        } else if (level == 2) {
+            activeWords = new ArrayList<>(level2Words);
         } else {
-            activeWords = new ArrayList<>(words5);
+            activeWords = new ArrayList<>(level3Words);
         }
 
         Collections.shuffle(activeWords);
@@ -363,17 +361,16 @@ public class MainActivity extends Activity {
         clearHeard();
         renderBoard();
         showWord();
-        chosenLevelText.setText(length + " BOKSTÄVER");
+        chosenLevelText.setText("NIVÅ " + level);
         feedbackText.setText("🎤");
 
-        speak("Bra. " + spokenNumber(length) + " bokstäver. Tryck på mikrofonen och läs ordet.");
+        speak("Nivå " + spokenLevel(level) + ". Tryck på mikrofonen och läs ordet.");
     }
 
-    private String spokenNumber(int number) {
-        if (number == 2) return "två";
-        if (number == 3) return "tre";
-        if (number == 4) return "fyra";
-        return "fem";
+    private String spokenLevel(int level) {
+        if (level == 1) return "ett";
+        if (level == 2) return "två";
+        return "tre";
     }
 
     private void showLevelSelection() {
@@ -393,6 +390,7 @@ public class MainActivity extends Activity {
 
     private void renderBoard() {
         board.removeAllViews();
+        heroView = null;
         startText.setText(position == 0 ? "START  🧙" : "START");
 
         for (int i = 1; i <= 10; i++) {
@@ -430,6 +428,10 @@ public class MainActivity extends Activity {
             lp.columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f);
             lp.setMargins(dp(3), dp(3), dp(3), dp(3));
             board.addView(cell, lp);
+
+            if (position == i) {
+                heroView = cell;
+            }
         }
 
         if (position < 10) {
@@ -509,10 +511,16 @@ public class MainActivity extends Activity {
                 if (!levelChosen || feedbackText == null) return;
                 listenButton.setEnabled(true);
 
+                if (partialMatchedTarget) {
+                    showHeard(currentWord, true);
+                    advance();
+                    return;
+                }
+
                 if (!latestPartial.isEmpty()) {
                     showHeard(latestPartial, false);
-                    feedbackText.setText("🔁 FÖRSÖK IGEN");
-                    speak("Jag hörde " + latestPartial + ". Försök igen.");
+                    feedbackText.setText("🔁");
+                    speak("Försök igen.");
                     return;
                 }
 
@@ -547,7 +555,7 @@ public class MainActivity extends Activity {
                 }
 
                 String best = matches.get(0);
-                boolean correct = false;
+                boolean correct = partialMatchedTarget;
 
                 for (String heard : matches) {
                     if (matchesTarget(heard, currentWord)) {
@@ -557,13 +565,18 @@ public class MainActivity extends Activity {
                     }
                 }
 
-                showHeard(best, correct);
+                if (partialMatchedTarget && !correct) {
+                    best = currentWord;
+                    correct = true;
+                }
+
+                showHeard(correct ? currentWord : best, correct);
 
                 if (correct) {
                     advance();
                 } else {
-                    feedbackText.setText("🔁 FÖRSÖK IGEN");
-                    speak("Jag hörde " + best + ". Försök igen.");
+                    feedbackText.setText("🔁");
+                    speak("Försök igen.");
                 }
             }
 
@@ -574,6 +587,15 @@ public class MainActivity extends Activity {
 
                 if (partial != null && !partial.isEmpty()) {
                     latestPartial = partial.get(0).trim();
+
+                    for (String candidate : partial) {
+                        if (matchesTarget(candidate, currentWord)) {
+                            partialMatchedTarget = true;
+                            latestPartial = candidate.trim();
+                            break;
+                        }
+                    }
+
                     if (!latestPartial.isEmpty()) {
                         heardLabel.setVisibility(View.VISIBLE);
                         heardText.setVisibility(View.VISIBLE);
@@ -614,11 +636,11 @@ public class MainActivity extends Activity {
         Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
         intent.putExtra(
                 RecognizerIntent.EXTRA_LANGUAGE_MODEL,
-                RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
+                RecognizerIntent.LANGUAGE_MODEL_WEB_SEARCH
         );
         intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, "sv-SE");
         intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, "sv-SE");
-        intent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 8);
+        intent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 10);
         intent.putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true);
         intent.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS, 1200L);
         intent.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 1200L);
@@ -627,10 +649,13 @@ public class MainActivity extends Activity {
         if (Build.VERSION.SDK_INT >= 33) {
             ArrayList<String> bias = new ArrayList<>();
             bias.add(currentWord);
+            if (currentWord.equals("vi")) bias.add("v");
+            if (currentWord.equals("är")) bias.add("r");
             intent.putStringArrayListExtra(RecognizerIntent.EXTRA_BIASING_STRINGS, bias);
         }
 
         latestPartial = "";
+        partialMatchedTarget = false;
         listenButton.setEnabled(false);
         feedbackText.setText("🎤 …");
 
@@ -653,6 +678,11 @@ public class MainActivity extends Activity {
             if (part.equals(t)) return true;
         }
 
+        // Android may transcribe the spoken Swedish words "vi" and "är"
+        // as the single letters V and R.
+        if (t.equals("vi") && h.equals("v")) return true;
+        if (t.equals("är") && h.equals("r")) return true;
+
         return false;
     }
 
@@ -663,15 +693,19 @@ public class MainActivity extends Activity {
         return value.replaceAll("[^a-zåäö ]", "").replaceAll("\\s+", " ");
     }
 
-    private void playSuccessEffect() {
+    private void playStepEffect() {
+        toneGenerator.startTone(ToneGenerator.TONE_PROP_ACK, 100);
+    }
+
+    private void playFinalCelebration() {
         toneGenerator.startTone(ToneGenerator.TONE_PROP_BEEP, 120);
         handler.postDelayed(() ->
                 toneGenerator.startTone(ToneGenerator.TONE_PROP_ACK, 180), 150);
         handler.postDelayed(() ->
-                toneGenerator.startTone(ToneGenerator.TONE_DTMF_9, 220), 340);
+                toneGenerator.startTone(ToneGenerator.TONE_DTMF_9, 240), 340);
 
         celebrationText.setVisibility(View.VISIBLE);
-        celebrationText.setText("⭐ HURRA! RÄTT! ⭐");
+        celebrationText.setText("⭐ DU KAN LÄSA! ⭐");
 
         ScaleAnimation pop = new ScaleAnimation(
                 0.55f, 1.15f, 0.55f, 1.15f,
@@ -679,37 +713,51 @@ public class MainActivity extends Activity {
                 Animation.RELATIVE_TO_SELF, 0.5f);
         pop.setDuration(300);
         pop.setRepeatMode(Animation.REVERSE);
-        pop.setRepeatCount(1);
+        pop.setRepeatCount(3);
         celebrationText.startAnimation(pop);
 
-        AlphaAnimation flash = new AlphaAnimation(0.25f, 1.0f);
-        flash.setDuration(180);
-        flash.setRepeatMode(Animation.REVERSE);
-        flash.setRepeatCount(3);
-        board.startAnimation(flash);
+        if (heroView != null) {
+            heroView.animate()
+                    .rotationBy(720f)
+                    .translationY(-dp(42))
+                    .scaleX(1.55f)
+                    .scaleY(1.55f)
+                    .setDuration(1250)
+                    .withEndAction(() -> {
+                        if (heroView != null) {
+                            heroView.animate()
+                                    .translationX(dp(180))
+                                    .translationY(-dp(85))
+                                    .alpha(0f)
+                                    .setDuration(900)
+                                    .start();
+                        }
+                    })
+                    .start();
+        }
 
-        speak("Hurra! Rätt!");
+        speak("Hurra hurra! Du kan läsa!");
     }
 
     private void advance() {
         celebrating = true;
         position++;
         renderBoard();
-        feedbackText.setText("✅ RÄTT!");
+        feedbackText.setText("✅");
         listenButton.setEnabled(false);
-
-        playSuccessEffect();
 
         if (position >= 10) {
             wordText.setText("🏆");
-            celebrationText.setText("🏆 DU KLARADE BANAN! 🏆");
-            handler.postDelayed(() ->
-                    speak("Hurra! Du klarade hela banan!"), 900);
+            progressText.setText("🏆 MÅL!");
+            playFinalCelebration();
+
             handler.postDelayed(() -> {
                 showLevelSelection();
-            }, 4200);
+            }, 5200);
             return;
         }
+
+        playStepEffect();
 
         handler.postDelayed(() -> {
             wordIndex++;
@@ -723,8 +771,9 @@ public class MainActivity extends Activity {
             showWord();
             feedbackText.setText("🎤");
             celebrating = false;
-            speak("Nästa ord. Tryck på mikrofonen och läs ordet.");
-        }, 1700);
+            // No spoken success message between words; this also prevents TTS
+            // from competing with the next microphone attempt.
+        }, 700);
     }
 
     @Override
