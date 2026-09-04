@@ -6,6 +6,7 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
 import android.media.AudioManager;
 import android.media.ToneGenerator;
 import android.os.Build;
@@ -39,14 +40,28 @@ public class MainActivity extends Activity {
 
     private static final int AUDIO_PERMISSION_REQUEST = 10;
 
+    // Child-friendly palette with clear meaning:
+    // green = right / progress, red = wrong / retry
+    private static final int BG = Color.rgb(241, 236, 191);          // warm sand
+    private static final int PANEL = Color.rgb(255, 249, 225);       // soft cream
+    private static final int BLUE = Color.rgb(82, 123, 196);         // pokemon-like blue
+    private static final int YELLOW = Color.rgb(255, 214, 73);       // pokemon-like yellow
+    private static final int GREEN = Color.rgb(92, 168, 109);        // correct
+    private static final int GREEN_DARK = Color.rgb(57, 120, 72);
+    private static final int RED = Color.rgb(224, 87, 80);           // wrong
+    private static final int RED_DARK = Color.rgb(153, 53, 53);
+    private static final int TEXT = Color.rgb(36, 36, 36);
+    private static final int SOFT_BORDER = Color.rgb(197, 194, 173);
+    private static final int STEP_PENDING = Color.rgb(240, 244, 255);
+    private static final int STEP_DONE = Color.rgb(210, 241, 216);
+    private static final int STEP_CURRENT = Color.rgb(255, 233, 135);
+
     private final List<String> level1Words = new ArrayList<>(Arrays.asList(
             "is", "gå", "åt", "du", "vi", "om", "by", "är", "aj", "ha"
     ));
-
     private final List<String> level2Words = new ArrayList<>(Arrays.asList(
             "sol", "kor", "ror", "bil", "mus", "hus", "bok", "mat", "fis"
     ));
-
     private final List<String> level3Words = new ArrayList<>(Arrays.asList(
             "boll", "katt", "hund", "bord", "stol",
             "glas", "fisk", "läsa", "måne", "bajs"
@@ -55,7 +70,6 @@ public class MainActivity extends Activity {
     private LinearLayout levelPanel;
     private LinearLayout gamePanel;
     private GridLayout board;
-    private TextView startText;
     private TextView wordText;
     private TextView heardLabel;
     private TextView heardText;
@@ -98,17 +112,17 @@ public class MainActivity extends Activity {
     private void buildUi() {
         ScrollView scroll = new ScrollView(this);
         scroll.setFillViewport(true);
-        scroll.setBackgroundColor(Color.WHITE);
+        scroll.setBackgroundColor(BG);
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(dp(16), dp(18), dp(16), dp(28));
-        root.setBackgroundColor(Color.WHITE);
+        root.setPadding(dp(16), dp(16), dp(16), dp(24));
+        root.setBackgroundColor(BG);
         scroll.addView(root);
 
         TextView title = new TextView(this);
         title.setText("Runes Läsäventyr");
-        title.setTextColor(Color.BLACK);
+        title.setTextColor(TEXT);
         title.setTextSize(30);
         title.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         title.setGravity(Gravity.CENTER);
@@ -124,12 +138,12 @@ public class MainActivity extends Activity {
         levelPanel = new LinearLayout(this);
         levelPanel.setOrientation(LinearLayout.VERTICAL);
         levelPanel.setPadding(dp(18), dp(22), dp(18), dp(22));
-        levelPanel.setBackgroundColor(Color.WHITE);
+        levelPanel.setBackground(makePanelDrawable());
         root.addView(levelPanel, matchWrap(dp(0)));
 
         TextView question = new TextView(this);
         question.setText("VÄLJ NIVÅ");
-        question.setTextColor(Color.BLACK);
+        question.setTextColor(TEXT);
         question.setTextSize(26);
         question.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         question.setGravity(Gravity.CENTER);
@@ -139,14 +153,14 @@ public class MainActivity extends Activity {
         hearQuestion.setText("🔊 LYSSNA");
         hearQuestion.setAllCaps(false);
         hearQuestion.setTextSize(20);
-        styleRedButton(hearQuestion);
+        styleActionButton(hearQuestion, BLUE, Color.WHITE);
         hearQuestion.setOnClickListener(v -> speakLevelQuestion());
         levelPanel.addView(hearQuestion, matchWrap(dp(18)));
 
         LinearLayout choices = new LinearLayout(this);
         choices.setOrientation(LinearLayout.HORIZONTAL);
         choices.setGravity(Gravity.CENTER);
-        levelPanel.addView(choices, matchWrap(dp(8)));
+        levelPanel.addView(choices, matchWrap(dp(10)));
 
         choices.addView(makeLevelButton(1), weightedButtonParams());
         choices.addView(makeLevelButton(2), weightedButtonParams());
@@ -154,7 +168,7 @@ public class MainActivity extends Activity {
 
         TextView hint = new TextView(this);
         hint.setText("1      2      3");
-        hint.setTextColor(Color.BLACK);
+        hint.setTextColor(TEXT);
         hint.setTextSize(18);
         hint.setGravity(Gravity.CENTER);
         levelPanel.addView(hint, matchWrap(dp(0)));
@@ -167,16 +181,14 @@ public class MainActivity extends Activity {
         button.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         button.setMinHeight(dp(82));
         button.setContentDescription("Nivå " + level);
-        styleRedButton(button);
+        styleActionButton(button, BLUE, Color.WHITE);
         button.setOnClickListener(v -> chooseLevel(level));
         return button;
     }
 
     private LinearLayout.LayoutParams weightedButtonParams() {
         LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(
-                0,
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                1f
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f
         );
         p.setMargins(dp(5), dp(0), dp(5), dp(0));
         return p;
@@ -190,31 +202,27 @@ public class MainActivity extends Activity {
 
         chosenLevelText = new TextView(this);
         chosenLevelText.setText("NIVÅ 1");
-        chosenLevelText.setTextColor(Color.RED);
-        chosenLevelText.setTextSize(26);
+        chosenLevelText.setTextColor(BLUE);
+        chosenLevelText.setTextSize(22);
         chosenLevelText.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         chosenLevelText.setGravity(Gravity.CENTER);
-        gamePanel.addView(chosenLevelText, matchWrap(dp(10)));
+        gamePanel.addView(chosenLevelText, matchWrap(dp(4)));
 
         progressText = new TextView(this);
         progressText.setText("10 kvar");
-        progressText.setTextColor(Color.BLACK);
-        progressText.setTextSize(22);
+        progressText.setTextColor(TEXT);
+        progressText.setTextSize(24);
         progressText.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         progressText.setGravity(Gravity.CENTER);
-        gamePanel.addView(progressText, matchWrap(dp(14)));
+        gamePanel.addView(progressText, matchWrap(dp(12)));
 
-        startText = new TextView(this);
+        TextView startText = new TextView(this);
         startText.setText("START");
-        startText.setTextColor(Color.BLACK);
-        startText.setTextSize(22);
+        startText.setTextColor(TEXT);
+        startText.setTextSize(18);
         startText.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         startText.setGravity(Gravity.CENTER);
-        startText.setBackgroundColor(Color.WHITE);
-        startText.setPadding(dp(10), dp(12), dp(10), dp(12));
-        startText.setTextAlignment(View.TEXT_ALIGNMENT_CENTER);
-        startText.setBackground(makeRectDrawable(Color.WHITE, Color.RED));
-        gamePanel.addView(startText, matchWrap(dp(12)));
+        gamePanel.addView(startText, matchWrap(dp(6)));
 
         board = new GridLayout(this);
         board.setColumnCount(5);
@@ -226,8 +234,8 @@ public class MainActivity extends Activity {
 
         celebrationText = new TextView(this);
         celebrationText.setText("DU KAN LÄSA!");
-        celebrationText.setTextColor(Color.RED);
-        celebrationText.setTextSize(34);
+        celebrationText.setTextColor(GREEN_DARK);
+        celebrationText.setTextSize(32);
         celebrationText.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         celebrationText.setGravity(Gravity.CENTER);
         celebrationText.setVisibility(View.GONE);
@@ -235,33 +243,33 @@ public class MainActivity extends Activity {
 
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
-        card.setPadding(dp(18), dp(20), dp(18), dp(20));
-        card.setBackground(makeRectDrawable(Color.WHITE, Color.RED));
-        gamePanel.addView(card, matchWrap(dp(12)));
+        card.setPadding(dp(18), dp(18), dp(18), dp(20));
+        card.setBackground(makePanelDrawable());
+        gamePanel.addView(card, matchWrap(dp(10)));
 
         TextView instruction = new TextView(this);
         instruction.setText("LÄS ORDET");
-        instruction.setTextColor(Color.BLACK);
+        instruction.setTextColor(TEXT);
         instruction.setTextSize(22);
         instruction.setGravity(Gravity.CENTER);
         instruction.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
-        card.addView(instruction, matchWrap(dp(6)));
+        card.addView(instruction, matchWrap(dp(8)));
 
         wordText = new TextView(this);
-        wordText.setTextColor(Color.BLACK);
-        wordText.setTextSize(74);
+        wordText.setTextColor(TEXT);
+        wordText.setTextSize(72);
         wordText.setGravity(Gravity.CENTER);
         wordText.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         wordText.setSingleLine(true);
         wordText.setLetterSpacing(0.03f);
-        wordText.setPadding(dp(4), dp(10), dp(4), dp(10));
+        wordText.setPadding(dp(6), dp(8), dp(6), dp(12));
         card.addView(wordText, matchWrap(dp(12)));
 
         listenButton = new Button(this);
         listenButton.setText("🎤");
         listenButton.setTextSize(38);
         listenButton.setMinHeight(dp(80));
-        styleRedButton(listenButton);
+        styleActionButton(listenButton, YELLOW, TEXT);
         listenButton.setOnClickListener(v -> startListening());
         card.addView(listenButton, matchWrap(dp(10)));
 
@@ -269,13 +277,13 @@ public class MainActivity extends Activity {
         listenAgain.setText("🔊 LYSSNA");
         listenAgain.setAllCaps(false);
         listenAgain.setTextSize(20);
-        styleWhiteButton(listenAgain);
+        styleActionButton(listenAgain, BLUE, Color.WHITE);
         listenAgain.setOnClickListener(v -> speak("Tryck på mikrofonen och läs ordet."));
-        card.addView(listenAgain, matchWrap(dp(14)));
+        card.addView(listenAgain, matchWrap(dp(12)));
 
         heardLabel = new TextView(this);
         heardLabel.setText("JAG HÖRDE");
-        heardLabel.setTextColor(Color.BLACK);
+        heardLabel.setTextColor(TEXT);
         heardLabel.setTextSize(15);
         heardLabel.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         heardLabel.setGravity(Gravity.CENTER);
@@ -283,8 +291,8 @@ public class MainActivity extends Activity {
         card.addView(heardLabel, matchWrap(dp(2)));
 
         heardText = new TextView(this);
-        heardText.setTextColor(Color.BLACK);
-        heardText.setTextSize(54);
+        heardText.setTextColor(TEXT);
+        heardText.setTextSize(52);
         heardText.setGravity(Gravity.CENTER);
         heardText.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         heardText.setSingleLine(true);
@@ -294,7 +302,7 @@ public class MainActivity extends Activity {
 
         feedbackText = new TextView(this);
         feedbackText.setText("🎤");
-        feedbackText.setTextColor(Color.BLACK);
+        feedbackText.setTextColor(TEXT);
         feedbackText.setTextSize(22);
         feedbackText.setGravity(Gravity.CENTER);
         feedbackText.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
@@ -305,27 +313,37 @@ public class MainActivity extends Activity {
         chooseAgain.setText("VÄLJ NIVÅ IGEN");
         chooseAgain.setAllCaps(false);
         chooseAgain.setTextSize(18);
-        styleWhiteButton(chooseAgain);
+        styleActionButton(chooseAgain, BLUE, Color.WHITE);
         chooseAgain.setOnClickListener(v -> showLevelSelection());
         gamePanel.addView(chooseAgain, matchWrap(dp(0)));
     }
 
-    private void styleRedButton(Button button) {
-        button.setBackgroundColor(Color.RED);
-        button.setTextColor(Color.WHITE);
+    private void styleActionButton(Button button, int fill, int textColor) {
+        button.setBackground(makeButtonDrawable(fill));
+        button.setTextColor(textColor);
         button.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
     }
 
-    private void styleWhiteButton(Button button) {
-        button.setBackground(makeRectDrawable(Color.WHITE, Color.BLACK));
-        button.setTextColor(Color.BLACK);
-        button.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
-    }
-
-    private android.graphics.drawable.GradientDrawable makeRectDrawable(int fillColor, int strokeColor) {
-        android.graphics.drawable.GradientDrawable d = new android.graphics.drawable.GradientDrawable();
+    private GradientDrawable makeButtonDrawable(int fillColor) {
+        GradientDrawable d = new GradientDrawable();
         d.setColor(fillColor);
-        d.setCornerRadius(dp(10));
+        d.setCornerRadius(dp(16));
+        d.setStroke(dp(2), TEXT);
+        return d;
+    }
+
+    private GradientDrawable makePanelDrawable() {
+        GradientDrawable d = new GradientDrawable();
+        d.setColor(PANEL);
+        d.setCornerRadius(dp(18));
+        d.setStroke(dp(1), SOFT_BORDER);
+        return d;
+    }
+
+    private GradientDrawable makeStepDrawable(int fillColor, int strokeColor) {
+        GradientDrawable d = new GradientDrawable();
+        d.setColor(fillColor);
+        d.setCornerRadius(dp(12));
         d.setStroke(dp(2), strokeColor);
         return d;
     }
@@ -337,9 +355,7 @@ public class MainActivity extends Activity {
                 ttsReady = result != TextToSpeech.LANG_MISSING_DATA
                         && result != TextToSpeech.LANG_NOT_SUPPORTED;
                 tts.setSpeechRate(0.92f);
-                if (ttsReady && !levelChosen) {
-                    speakLevelQuestion();
-                }
+                if (ttsReady && !levelChosen) speakLevelQuestion();
             }
         });
     }
@@ -380,6 +396,7 @@ public class MainActivity extends Activity {
         renderBoard();
         showWord();
         feedbackText.setText("🎤");
+        feedbackText.setTextColor(TEXT);
 
         speak("Nivå " + spokenLevel(level) + ". Tryck på mikrofonen och läs ordet.");
     }
@@ -404,7 +421,6 @@ public class MainActivity extends Activity {
     private void renderBoard() {
         board.removeAllViews();
         heroView = null;
-        startText.setText("START");
 
         for (int i = 1; i <= 10; i++) {
             LinearLayout cell = new LinearLayout(this);
@@ -416,11 +432,9 @@ public class MainActivity extends Activity {
             boolean isGoal = i == 10;
             boolean isDone = i <= position;
 
-            if (isDone) {
-                cell.setBackground(makeRectDrawable(Color.rgb(255, 235, 235), Color.RED));
-            } else {
-                cell.setBackground(makeRectDrawable(Color.WHITE, Color.BLACK));
-            }
+            int fill = isCurrent ? STEP_CURRENT : (isDone ? STEP_DONE : STEP_PENDING);
+            int border = isGoal ? RED : (isDone ? GREEN : BLUE);
+            cell.setBackground(makeStepDrawable(fill, border));
 
             if (isCurrent) {
                 ImageView hero = new ImageView(this);
@@ -441,7 +455,7 @@ public class MainActivity extends Activity {
 
             TextView number = new TextView(this);
             number.setText(String.valueOf(i));
-            number.setTextColor(Color.BLACK);
+            number.setTextColor(TEXT);
             number.setTextSize(isCurrent ? 21 : 19);
             number.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
             number.setGravity(Gravity.CENTER);
@@ -466,7 +480,10 @@ public class MainActivity extends Activity {
         wordText.setText(currentWord.toUpperCase(new Locale("sv", "SE")));
         boolean recognitionAvailable = SpeechRecognizer.isRecognitionAvailable(this);
         listenButton.setEnabled(position < 10 && recognitionAvailable);
-        if (!recognitionAvailable) feedbackText.setText("🎤 🚫");
+        if (!recognitionAvailable) {
+            feedbackText.setText("🎤 🚫");
+            feedbackText.setTextColor(RED_DARK);
+        }
     }
 
     private void clearHeard() {
@@ -481,11 +498,9 @@ public class MainActivity extends Activity {
         heardLabel.setVisibility(View.VISIBLE);
         heardText.setVisibility(View.VISIBLE);
         heardText.setText(text.toUpperCase(new Locale("sv", "SE")));
-        heardText.setTextColor(Color.BLACK);
-        heardText.setBackground(makeRectDrawable(
-                correct ? Color.rgb(255, 235, 235) : Color.WHITE,
-                correct ? Color.RED : Color.BLACK
-        ));
+        heardText.setTextColor(correct ? GREEN_DARK : RED_DARK);
+        heardText.setBackground(makeStepDrawable(correct ? STEP_DONE : Color.rgb(255, 231, 231),
+                correct ? GREEN : RED));
 
         ScaleAnimation pop = new ScaleAnimation(
                 0.75f, 1.0f, 0.75f, 1.0f,
@@ -502,19 +517,26 @@ public class MainActivity extends Activity {
             @Override public void onReadyForSpeech(Bundle params) {
                 if (!levelChosen) return;
                 feedbackText.setText("👂");
+                feedbackText.setTextColor(TEXT);
                 latestPartial = "";
                 partialMatchedTarget = false;
             }
 
             @Override public void onBeginningOfSpeech() {
-                if (levelChosen) feedbackText.setText("👂 …");
+                if (levelChosen) {
+                    feedbackText.setText("👂 …");
+                    feedbackText.setTextColor(TEXT);
+                }
             }
 
             @Override public void onRmsChanged(float rmsdB) {}
             @Override public void onBufferReceived(byte[] buffer) {}
 
             @Override public void onEndOfSpeech() {
-                if (levelChosen) feedbackText.setText("⏳");
+                if (levelChosen) {
+                    feedbackText.setText("⏳");
+                    feedbackText.setTextColor(TEXT);
+                }
             }
 
             @Override public void onError(int error) {
@@ -529,13 +551,15 @@ public class MainActivity extends Activity {
 
                 if (!latestPartial.isEmpty()) {
                     showHeard(latestPartial, false);
-                    feedbackText.setText("🔁");
+                    feedbackText.setText("❌ FEL");
+                    feedbackText.setTextColor(RED_DARK);
                     speak("Försök igen.");
                     return;
                 }
 
                 clearHeard();
-                feedbackText.setText("🔁");
+                feedbackText.setText("❌ FEL");
+                feedbackText.setTextColor(RED_DARK);
                 if (error == SpeechRecognizer.ERROR_SPEECH_TIMEOUT) {
                     speak("Jag hörde inget. Försök igen.");
                 } else {
@@ -556,7 +580,8 @@ public class MainActivity extends Activity {
                     } else {
                         clearHeard();
                     }
-                    feedbackText.setText("🔁");
+                    feedbackText.setText("❌ FEL");
+                    feedbackText.setTextColor(RED_DARK);
                     speak("Försök igen.");
                     return;
                 }
@@ -582,7 +607,8 @@ public class MainActivity extends Activity {
                 if (correct) {
                     advance();
                 } else {
-                    feedbackText.setText("🔁");
+                    feedbackText.setText("❌ FEL");
+                    feedbackText.setTextColor(RED_DARK);
                     speak("Försök igen.");
                 }
             }
@@ -608,8 +634,8 @@ public class MainActivity extends Activity {
                         heardText.setVisibility(View.VISIBLE);
                         heardLabel.setText("JAG HÖR");
                         heardText.setText(latestPartial.toUpperCase(new Locale("sv", "SE")));
-                        heardText.setTextColor(Color.BLACK);
-                        heardText.setBackground(makeRectDrawable(Color.WHITE, Color.BLACK));
+                        heardText.setTextColor(TEXT);
+                        heardText.setBackground(makeStepDrawable(Color.WHITE, BLUE));
                     }
                 }
             }
@@ -629,7 +655,6 @@ public class MainActivity extends Activity {
         }
 
         if (speechRecognizer == null) setupSpeechRecognizer();
-
         if (tts != null) tts.stop();
 
         clearHeard();
@@ -657,12 +682,14 @@ public class MainActivity extends Activity {
 
         listenButton.setEnabled(false);
         feedbackText.setText("🎤 …");
+        feedbackText.setTextColor(TEXT);
 
         try {
             speechRecognizer.startListening(intent);
         } catch (Exception e) {
             listenButton.setEnabled(true);
-            feedbackText.setText("🔁");
+            feedbackText.setText("❌ FEL");
+            feedbackText.setTextColor(RED_DARK);
             speak("Försök igen.");
         }
     }
@@ -703,6 +730,7 @@ public class MainActivity extends Activity {
 
         celebrationText.setVisibility(View.VISIBLE);
         celebrationText.setText("⭐ DU KAN LÄSA! ⭐");
+        celebrationText.setTextColor(GREEN_DARK);
 
         ScaleAnimation pop = new ScaleAnimation(
                 0.55f, 1.15f, 0.55f, 1.15f,
@@ -747,7 +775,8 @@ public class MainActivity extends Activity {
         celebrating = true;
         position++;
         renderBoard();
-        feedbackText.setText("✅");
+        feedbackText.setText("✅ RÄTT");
+        feedbackText.setTextColor(GREEN_DARK);
         listenButton.setEnabled(false);
 
         if (position >= 10) {
@@ -772,6 +801,7 @@ public class MainActivity extends Activity {
             celebrationText.setVisibility(View.GONE);
             showWord();
             feedbackText.setText("🎤");
+            feedbackText.setTextColor(TEXT);
             celebrating = false;
         }, 650);
     }
@@ -788,6 +818,7 @@ public class MainActivity extends Activity {
                 handler.postDelayed(this::startListening, 700);
             } else {
                 feedbackText.setText("🎤 🚫");
+                feedbackText.setTextColor(RED_DARK);
                 speak("Mikrofonen behöver tillåtelse för att kunna lyssna.");
             }
         }
